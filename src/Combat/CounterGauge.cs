@@ -1,3 +1,5 @@
+using System;
+
 namespace RPGGame.Combat
 {
     /// <summary>

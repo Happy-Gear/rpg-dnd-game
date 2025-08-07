@@ -1,6 +1,8 @@
 using System;
+using RPGGame.Grid;
+using RPGGame.Combat;
 
-namespace RPGGame.Character
+namespace RPGGame.Characters
 {
     /// <summary>
     /// Core character class representing a player or NPC in the game

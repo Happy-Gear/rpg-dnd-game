@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RPGGame.Character;
+using RPGGame.Characters;
 using RPGGame.Combat;
 
 namespace RPGGame.Core

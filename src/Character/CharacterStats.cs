@@ -1,6 +1,6 @@
 using System;
 
-namespace RPGGame.Character
+namespace RPGGame.Characters
 {
     /// <summary>
     /// Character stats system - expandable for future 6-stat system

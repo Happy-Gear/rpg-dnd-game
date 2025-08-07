@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using RPGGame.Character;
+using RPGGame.Characters;
 
 namespace RPGGame.Core
 {

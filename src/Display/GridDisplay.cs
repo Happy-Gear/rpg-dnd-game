@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using RPGGame.Character;
+using RPGGame.Characters;
 using RPGGame.Grid;
 
 namespace RPGGame.Display

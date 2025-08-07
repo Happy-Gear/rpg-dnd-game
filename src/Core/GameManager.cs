@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RPGGame.Character;
+using RPGGame.Characters;
 using RPGGame.Combat;
 using RPGGame.Core;
 using RPGGame.Display;
@@ -21,6 +21,7 @@ namespace RPGGame.Core
         private bool _waitingForDefenseChoice;
         private AttackResult _pendingAttack;
         private Character _defendingCharacter;
+	private MovementSystem _movementSystem;
         
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
@@ -32,6 +33,7 @@ namespace RPGGame.Core
             _gridDisplay = new GridDisplay(gridWidth, gridHeight);
             _players = new List<Character>();
             _waitingForDefenseChoice = false;
+	    _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
         }
         
         /// <summary>

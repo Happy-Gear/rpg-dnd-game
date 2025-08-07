@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using RPGGame.Character;
+using RPGGame.Characters;
 using RPGGame.Dice;
 
 namespace RPGGame.Combat
@@ -10,12 +10,12 @@ namespace RPGGame.Combat
     /// </summary>
     public class CombatSystem
     {
-        private DiceRoller _diceRoller;
+        public DiceRoller DiceRoller { get; private set; }
         private List<CombatLog> _combatHistory;
         
         public CombatSystem(int? seed = null)
         {
-            _diceRoller = new DiceRoller(seed);
+            DiceRoller = new DiceRoller(seed);
             _combatHistory = new List<CombatLog>();
         }
         
@@ -38,7 +38,7 @@ namespace RPGGame.Combat
             attacker.UseStamina(3);
             
             // Roll attack dice (2d6 + ATK modifier)
-            var attackRoll = _diceRoller.Roll2d6("ATK");
+            var attackRoll = DiceRoller.Roll2d6("ATK");
             int totalAttackDamage = attackRoll.Total + attacker.AttackPoints;
             
             var result = new AttackResult
@@ -109,7 +109,7 @@ namespace RPGGame.Combat
             defender.UseStamina(2);
             
             // Roll defense dice (2d6 + DEF modifier)
-            var defenseRoll = _diceRoller.Roll2d6("DEF");
+            var defenseRoll = DiceRoller.Roll2d6("DEF");
             int totalDefense = defenseRoll.Total + defender.DefensePoints;
             
             // Calculate damage reduction
@@ -230,7 +230,7 @@ namespace RPGGame.Combat
             counterAttacker.Counter.ConsumeCounter();
             
             // Counter attacks are "free" (no stamina cost) but use same damage system
-            var attackRoll = _diceRoller.Roll2d6("COUNTER");
+            var attackRoll = DiceRoller.Roll2d6("COUNTER");
             int totalDamage = attackRoll.Total + counterAttacker.AttackPoints;
             
             // Counter attacks bypass defense (immediate damage)

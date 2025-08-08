@@ -134,7 +134,7 @@ namespace RPGGame.Core
         /// </summary>
         private bool IsValidGridPosition(Position pos)
         {
-            return pos.X >= 0 && pos.X < 10 && pos.Y >= 0 && pos.Y < 8; // Grid size 10x8
+            return pos.X >= 0 && pos.X < 16 && pos.Y >= 0 && pos.Y < 16; // Grid size 16x16
         }
         
         /// <summary>

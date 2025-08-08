@@ -26,7 +26,7 @@ namespace RPGGame.Core
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
         
-        public GameManager(int gridWidth = 10, int gridHeight = 8)
+        public GameManager(int gridWidth = 16, int gridHeight = 16)
         {
             _turnManager = new TurnManager();
             _combatSystem = new CombatSystem();
@@ -297,7 +297,7 @@ namespace RPGGame.Core
             var positions = new List<Position>
             {
                 new Position(1, 1),
-                new Position(8, 6),
+                new Position(13, 13),
                 new Position(2, 6),
                 new Position(7, 1)
             };

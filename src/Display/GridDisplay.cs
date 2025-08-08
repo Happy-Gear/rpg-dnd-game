@@ -41,33 +41,25 @@ namespace RPGGame.Display
             // Draw grid with characters at junction points (+)
             for (int y = _height - 1; y >= 0; y--) // Top to bottom for proper display
             {
-                // Draw horizontal line with character positions
-                for (int x = 0; x < _width; x++)
-                {
-                    char displayChar = GetCharacterAtPosition(x, y);
-                    sb.Append(displayChar);
-                    
-                    // Add horizontal connector (except last column)
-                    if (x < _width - 1)
-                    {
-                        sb.Append("---");
-                    }
-                }
-                sb.AppendLine();
-                
-                // Draw vertical connectors (except last row)
-                if (y > 0)
-                {
-                    for (int x = 0; x < _width; x++)
-                    {
-                        sb.Append("|");
-                        if (x < _width - 1)
-                        {
-                            sb.Append("   "); // 3 spaces to match "---"
-                        }
-                    }
-                    sb.AppendLine();
-                }
+			// Draw row with character positions
+			for (int x = 0; x < _width; x++)
+			{
+				char displayChar = GetCharacterAtPosition(x, y);
+				sb.Append(displayChar);
+				
+				// Add spaces between grid points (except last column)
+				if (x < _width - 1)
+				{
+					sb.Append("   "); // 3 spaces between positions
+				}
+			}
+			sb.AppendLine();
+
+			// Add vertical spacing (except last row)
+			if (y > 0)
+			{
+				sb.AppendLine(); // Empty line for vertical spacing
+			}
             }
             
             return sb.ToString();
@@ -87,7 +79,7 @@ namespace RPGGame.Display
                 return char.ToUpper(character.Name[0]);
             }
             
-            return '+'; // Empty junction point
+            return '.'; // Empty junction point
         }
         
         /// <summary>

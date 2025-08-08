@@ -16,7 +16,7 @@ namespace RPGGame
             var bob = CreateCharacter("Bob", 14, 12, 6, 7, 8);
             
             // Initialize game
-            var game = new GameManager(10, 8);
+            var game = new GameManager(16, 16);
             
             // Start the game
             Console.WriteLine(game.StartGame(alice, bob));

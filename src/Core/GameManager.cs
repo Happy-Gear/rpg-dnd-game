@@ -27,6 +27,11 @@ namespace RPGGame.Core
         private MovementResult _pendingMovement;
         private bool _waitingForMovementTarget;
         
+        // Post-evasion movement state
+        private bool _waitingForEvasionMovement;
+        private DefenseResult _pendingEvasionResult;
+        private Character _evadingCharacter;
+        
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
         
@@ -38,7 +43,10 @@ namespace RPGGame.Core
             _players = new List<Character>();
             _waitingForDefenseChoice = false;
             _waitingForMovementTarget = false;
+            _waitingForEvasionMovement = false;
             _pendingMovement = null;
+            _pendingEvasionResult = null;
+            _evadingCharacter = null;
             _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
         }
         
@@ -77,6 +85,12 @@ namespace RPGGame.Core
             if (_waitingForDefenseChoice)
             {
                 return ProcessDefenseChoice(input);
+            }
+            
+            // Handle post-evasion movement if waiting for one
+            if (_waitingForEvasionMovement)
+            {
+                return ProcessEvasionMovement(input);
             }
             
             // Handle movement target selection if waiting for one
@@ -126,6 +140,71 @@ namespace RPGGame.Core
             
             _gridDisplay.UpdateCharacters(_players);
             return result;
+        }
+        
+        /// <summary>
+        /// Handle movement after successful evasion
+        /// </summary>
+        private string ProcessEvasionMovement(string input)
+        {
+            var parts = input.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (parts.Length >= 2 && int.TryParse(parts[0], out int x) && int.TryParse(parts[1], out int y))
+            {
+                var targetPosition = new Position(x, y);
+                
+                // Check if position is valid for evasion movement
+                var validPositions = _gridDisplay.GetValidMovePositions(_evadingCharacter);
+                var filteredPositions = validPositions.Where(pos => {
+                    int distance = Math.Abs(_evadingCharacter.Position.X - pos.X) + Math.Abs(_evadingCharacter.Position.Y - pos.Y);
+                    return distance <= _pendingEvasionResult.MovementDistance;
+                }).ToList();
+                
+                if (filteredPositions.Any(p => p.Equals(targetPosition)))
+                {
+                    // Execute the evasion movement
+                    var characterName = _evadingCharacter.Name;
+                    _evadingCharacter.Position = targetPosition;
+                    
+                    // Clear evasion state
+                    _waitingForEvasionMovement = false;
+                    _pendingEvasionResult = null;
+                    _evadingCharacter = null;
+                    
+                    // Continue to next turn
+                    var nextTurn = _turnManager.NextTurn();
+                    
+                    return _gridDisplay.CreateFullDisplay(
+                        $"{characterName} moves to ({targetPosition.X},{targetPosition.Y}) after evasion.\n\n" +
+                        $"{nextTurn.Message}\n" +
+                        GetTurnInstructions(nextTurn)
+                    );
+                }
+                else
+                {
+                    return "Invalid position! Choose from the available evasion positions.";
+                }
+            }
+            else if (input.ToLower().Trim() == "skip" || input.ToLower().Trim() == "continue")
+            {
+                // Skip movement, continue to next turn
+                var characterName = _evadingCharacter.Name;
+                _waitingForEvasionMovement = false;
+                _pendingEvasionResult = null;
+                _evadingCharacter = null;
+                
+                var nextTurn = _turnManager.NextTurn();
+                
+                return _gridDisplay.CreateFullDisplay(
+                    $"{characterName} skips evasion movement.\n\n" +
+                    $"{nextTurn.Message}\n" +
+                    GetTurnInstructions(nextTurn)
+                );
+            }
+            else
+            {
+                return "Enter coordinates as 'x y' (e.g., '7 8') or type 'skip' to continue without moving.";
+            }
         }
         
         /// <summary>
@@ -240,7 +319,7 @@ namespace RPGGame.Core
                 $"{attackResult.Message}\n\n" +
                 $"{target.Name}, choose your response:\n" +
                 "  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
-                "  'move' - Spend 1 stamina, avoid damage completely\n" +
+                "  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
                 "  'take' - Save stamina, take full damage\n" +
                 $"\nTarget has {target.CurrentStamina} stamina available."
             );
@@ -261,6 +340,37 @@ namespace RPGGame.Core
             var defenseResult = _combatSystem.ResolveDefense(_defendingCharacter, _pendingAttack, choice.Value);
             
             var resultMessage = $"{_pendingAttack.Message}\n{defenseResult.Message}\n";
+            
+            // Handle movement after successful evasion
+            if (defenseResult.DefenseChoice == DefenseChoice.Move && defenseResult.CanMove)
+            {
+                // Set up evasion movement state
+                _waitingForEvasionMovement = true;
+                _pendingEvasionResult = defenseResult;
+                _evadingCharacter = _defendingCharacter;
+                
+                resultMessage += $"\n{_defendingCharacter.Name} can now move up to {defenseResult.MovementDistance} spaces.\n";
+                resultMessage += "Available movement positions:\n";
+                
+                var movePositions = _gridDisplay.GetValidMovePositions(_defendingCharacter);
+                var filteredPositions = movePositions.Where(pos => {
+                    int distance = Math.Abs(_defendingCharacter.Position.X - pos.X) + Math.Abs(_defendingCharacter.Position.Y - pos.Y);
+                    return distance <= defenseResult.MovementDistance;
+                }).ToList();
+                
+                foreach (var pos in filteredPositions.Take(10))
+                {
+                    resultMessage += $"  → ({pos.X},{pos.Y})\n";
+                }
+                resultMessage += "Enter coordinates as 'x y' (e.g., '7 8') or type 'skip' to continue.\n";
+                
+                // Clear defense state but don't advance turn yet
+                _waitingForDefenseChoice = false;
+                _pendingAttack = null;
+                _defendingCharacter = null;
+                
+                return _gridDisplay.CreateFullDisplay(resultMessage);
+            }
             
             // Check for counter attack opportunity
             if (defenseResult.CounterReady)
@@ -303,7 +413,7 @@ namespace RPGGame.Core
             {
                 // Direct move to specific position - roll dice and execute immediately
                 var moveResult = _movementSystem.CalculateMovement(character, MovementType.Simple);
-                var result = $"{character.Name} rolls for movement: {moveResult.MoveRoll} = {moveResult.MaxDistance} movement points\n\n";
+                var result = $"{character.Name} moves: {moveResult.MoveRoll} + {character.MovementPoints} MOV = {moveResult.MaxDistance} movement points\n\n";
                 
                 if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
                 {
@@ -333,7 +443,7 @@ namespace RPGGame.Core
                 _pendingMovement = _movementSystem.CalculateMovement(character, MovementType.Simple);
                 _waitingForMovementTarget = true;
                 
-                var result = $"{character.Name} rolls for movement: {_pendingMovement.MoveRoll} = {_pendingMovement.MaxDistance} movement points\n\n";
+                var result = $"{character.Name} moves: {_pendingMovement.MoveRoll} + {character.MovementPoints} MOV = {_pendingMovement.MaxDistance} movement points\n\n";
                 
                 return _gridDisplay.CreateFullDisplay(
                     result + GetMovementOptions(_pendingMovement) + 
@@ -341,7 +451,7 @@ namespace RPGGame.Core
                 );
             }
         }
-
+        
         /// <summary>
         /// Handle dash movement action
         /// </summary>
@@ -353,7 +463,7 @@ namespace RPGGame.Core
             {
                 // Direct dash to specific position - roll dice and execute immediately
                 var moveResult = _movementSystem.CalculateMovement(character, MovementType.Dash);
-                var result = $"{character.Name} rolls for DASH: {moveResult.MoveRoll} = {moveResult.MaxDistance} movement points\n\n";
+                var result = $"{character.Name} dashes: {moveResult.MoveRoll} + {character.MovementPoints} MOV = {moveResult.MaxDistance} movement points\n\n";
                 
                 if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
                 {
@@ -380,7 +490,7 @@ namespace RPGGame.Core
                 _pendingMovement = _movementSystem.CalculateMovement(character, MovementType.Dash);
                 _waitingForMovementTarget = true;
                 
-                var result = $"{character.Name} rolls for DASH: {_pendingMovement.MoveRoll} = {_pendingMovement.MaxDistance} movement points\n\n";
+                var result = $"{character.Name} dashes: {_pendingMovement.MoveRoll} + {character.MovementPoints} MOV = {_pendingMovement.MaxDistance} movement points\n\n";
                 
                 return _gridDisplay.CreateFullDisplay(
                     result + GetMovementOptions(_pendingMovement) + 
@@ -456,7 +566,7 @@ namespace RPGGame.Core
             var positions = new List<Position>
             {
                 new Position(2, 2),   // Alice - bottom-left area
-                new Position(13, 13), // Bob - top-right area
+                new Position(5, 5), // Bob - top-right area
                 new Position(2, 13),  // Player 3 - top-left area
                 new Position(13, 2)   // Player 4 - bottom-right area
             };

@@ -42,15 +42,14 @@ namespace RPGGame.Combat
             int totalAttackDamage = attackRoll.Total + attacker.AttackPoints;
             
             var result = new AttackResult
-            {
-                Success = true,
-                Attacker = attacker.Name,
-                Defender = defender.Name,
-                AttackRoll = attackRoll,
-                BaseAttackDamage = totalAttackDamage,
-                Message = $"{attacker.Name} attacks {defender.Name} for {totalAttackDamage} damage!"
-            };
-            
+			{
+				Success = true,
+				Attacker = attacker.Name,
+				Defender = defender.Name,
+				AttackRoll = attackRoll,
+				BaseAttackDamage = totalAttackDamage,
+				Message = $"{attacker.Name} attacks {defender.Name}: {attackRoll} + {attacker.AttackPoints} ATK = {totalAttackDamage} damage!"
+			};
             // Log combat action
             LogCombat(new CombatLog
             {
@@ -68,127 +67,153 @@ namespace RPGGame.Combat
         /// <summary>
         /// Handle defender's response to an incoming attack
         /// </summary>
-        public DefenseResult ResolveDefense(Character defender, AttackResult incomingAttack, DefenseChoice choice)
-        {
-            var result = new DefenseResult
-            {
-                DefenseChoice = choice,
-                IncomingDamage = incomingAttack.BaseAttackDamage
-            };
-            
-            switch (choice)
-            {
-                case DefenseChoice.Defend:
-                    result = HandleDefenseAction(defender, incomingAttack);
-                    break;
-                    
-                case DefenseChoice.Move:
-                    result = HandleMoveAction(defender, incomingAttack);
-                    break;
-                    
-                case DefenseChoice.TakeDamage:
-                    result = HandleTakeDamage(defender, incomingAttack);
-                    break;
-            }
-            
-            return result;
-        }
+		public DefenseResult ResolveDefense(Character defender, AttackResult incomingAttack, DefenseChoice choice)
+		{
+			var result = new DefenseResult();
+			
+			switch (choice)
+			{
+				case DefenseChoice.Defend:
+					result = HandleDefenseAction(defender, incomingAttack);
+					break;
+					
+				case DefenseChoice.Move:
+					result = HandleMoveAction(defender, incomingAttack);
+					break;
+					
+				case DefenseChoice.TakeDamage:
+					result = HandleTakeDamage(defender, incomingAttack);
+					break;
+			}
+			
+			return result;
+		}
+		/// <summary>
+		/// Handle DEF action with counter gauge mechanics
+		/// </summary>
+		private DefenseResult HandleDefenseAction(Character defender, AttackResult incomingAttack)
+		{
+			// Check if defender has enough stamina
+			if (!CanDefend(defender))
+			{
+				return HandleTakeDamage(defender, incomingAttack, "Insufficient stamina to defend!");
+			}
+			
+			// Consume stamina for defense
+			defender.UseStamina(2);
+			
+			// Roll defense dice (2d6 + DEF modifier)
+			var defenseRoll = DiceRoller.Roll2d6("DEF");
+			int totalDefense = defenseRoll.Total + defender.DefensePoints;
+			
+			// Calculate damage reduction
+			int damageBlocked = Math.Min(totalDefense, incomingAttack.BaseAttackDamage);
+			int finalDamage = Math.Max(0, incomingAttack.BaseAttackDamage - totalDefense);
+			
+			// Handle counter gauge for over-defense (badminton streak)
+			int overDefense = Math.Max(0, totalDefense - incomingAttack.BaseAttackDamage);
+			if (overDefense > 0)
+			{
+				defender.Counter.AddCounter(overDefense);
+			}
+			
+			// Apply remaining damage
+			if (finalDamage > 0)
+			{
+				defender.TakeDamage(finalDamage);
+			}
+			
+			var result = new DefenseResult
+			{
+				DefenseChoice = DefenseChoice.Defend,
+				DefenseRoll = defenseRoll,
+				TotalDefense = totalDefense,
+				DamageBlocked = damageBlocked,
+				FinalDamage = finalDamage,
+				CounterBuilt = overDefense,
+				CounterReady = defender.Counter.IsReady,
+				Message = $"{defender.Name} defends: {defenseRoll} + {defender.DefensePoints} DEF = {totalDefense} defense" +
+						 (finalDamage > 0 ? $" - takes {finalDamage} damage" : " - blocks completely!") +
+						 (overDefense > 0 ? $" Counter +{overDefense}!" : "")
+			};
+			
+			// Log combat action
+			LogCombat(new CombatLog
+			{
+				Action = CombatAction.Defend,
+				ActorName = defender.Name,
+				DiceRoll = defenseRoll,
+				StaminaCost = 2,
+				AdditionalInfo = $"Blocked {damageBlocked}, Counter +{overDefense}",
+				Timestamp = DateTime.Now
+			});
+			
+			return result;
+		}
         
-        /// <summary>
-        /// Handle DEF action with counter gauge mechanics
-        /// </summary>
-        private DefenseResult HandleDefenseAction(Character defender, AttackResult incomingAttack)
-        {
-            // Check if defender has enough stamina
-            if (!CanDefend(defender))
-            {
-                return HandleTakeDamage(defender, incomingAttack, "Insufficient stamina to defend!");
-            }
-            
-            // Consume stamina for defense
-            defender.UseStamina(2);
-            
-            // Roll defense dice (2d6 + DEF modifier)
-            var defenseRoll = DiceRoller.Roll2d6("DEF");
-            int totalDefense = defenseRoll.Total + defender.DefensePoints;
-            
-            // Calculate damage reduction
-            int damageBlocked = Math.Min(totalDefense, incomingAttack.BaseAttackDamage);
-            int finalDamage = Math.Max(0, incomingAttack.BaseAttackDamage - totalDefense);
-            
-            // Handle counter gauge for over-defense (badminton streak)
-            int overDefense = Math.Max(0, totalDefense - incomingAttack.BaseAttackDamage);
-            if (overDefense > 0)
-            {
-                defender.Counter.AddCounter(overDefense);
-            }
-            
-            // Apply remaining damage
-            if (finalDamage > 0)
-            {
-                defender.TakeDamage(finalDamage);
-            }
-            
-            var result = new DefenseResult
-            {
-                DefenseChoice = DefenseChoice.Defend,
-                DefenseRoll = defenseRoll,
-                TotalDefense = totalDefense,
-                DamageBlocked = damageBlocked,
-                FinalDamage = finalDamage,
-                CounterBuilt = overDefense,
-                CounterReady = defender.Counter.IsReady,
-                Message = BuildDefenseMessage(defender, totalDefense, incomingAttack.BaseAttackDamage, overDefense)
-            };
-            
-            // Log combat action
-            LogCombat(new CombatLog
-            {
-                Action = CombatAction.Defend,
-                ActorName = defender.Name,
-                DiceRoll = defenseRoll,
-                StaminaCost = 2,
-                AdditionalInfo = $"Blocked {damageBlocked}, Counter +{overDefense}",
-                Timestamp = DateTime.Now
-            });
-            
-            return result;
-        }
-        
-        /// <summary>
-        /// Handle MOV action (evasion)
-        /// </summary>
-        private DefenseResult HandleMoveAction(Character defender, AttackResult incomingAttack)
-        {
-            // MOV costs 1 stamina and avoids damage entirely
-            if (!defender.UseStamina(1))
-            {
-                return HandleTakeDamage(defender, incomingAttack, "Insufficient stamina to move!");
-            }
-            
-            // Counter gauge is preserved (no reset)
-            
-            var result = new DefenseResult
-            {
-                DefenseChoice = DefenseChoice.Move,
-                FinalDamage = 0,
-                CounterBuilt = 0,
-                CounterReady = defender.Counter.IsReady,
-                Message = $"{defender.Name} evades the attack completely!"
-            };
-            
-            // Log combat action
-            LogCombat(new CombatLog
-            {
-                Action = CombatAction.Move,
-                ActorName = defender.Name,
-                StaminaCost = 1,
-                AdditionalInfo = "Evaded attack, counter preserved",
-                Timestamp = DateTime.Now
-            });
-            
-            return result;
-        }
+		/// <summary>
+		/// Handle MOV action (evasion with dice roll)
+		/// </summary>
+		private DefenseResult HandleMoveAction(Character defender, AttackResult incomingAttack)
+		{
+			// MOV costs 1 stamina
+			if (!defender.UseStamina(1))
+			{
+				return HandleTakeDamage(defender, incomingAttack, "Insufficient stamina to move!");
+			}
+			
+			// Roll evasion dice (2d6 + MOV modifier)
+			var evasionRoll = DiceRoller.Roll2d6("EVASION");
+			int totalEvasion = evasionRoll.Total + defender.MovementPoints;
+			
+			// Compare evasion vs incoming attack
+			int attackValue = incomingAttack.BaseAttackDamage;
+			int evasionDifference = totalEvasion - attackValue;
+			
+			var result = new DefenseResult
+			{
+				DefenseChoice = DefenseChoice.Move,
+				DefenseRoll = evasionRoll, // Store the evasion roll
+				TotalDefense = totalEvasion,
+				CounterReady = defender.Counter.IsReady
+			};
+			
+			if (evasionDifference >= 0)
+			{
+				// Successful evasion - no damage, can move
+				result.FinalDamage = 0;
+				result.CounterBuilt = 0;
+				result.CanMove = true;
+				result.MovementDistance = Math.Max(1, evasionDifference);
+				result.Message = $"{defender.Name} evades: {evasionRoll} + {defender.MovementPoints} MOV = {totalEvasion} evasion vs {attackValue} attack - " +
+								$"evades completely and can move {result.MovementDistance} spaces!";
+			}
+			else
+			{
+				// Failed evasion - take damage, no movement
+				int damage = Math.Abs(evasionDifference);
+				defender.TakeDamage(damage);
+				result.FinalDamage = damage;
+				result.CounterBuilt = 0;
+				result.CanMove = false;
+				result.MovementDistance = 0;
+				result.Message = $"{defender.Name} evades: {evasionRoll} + {defender.MovementPoints} MOV = {totalEvasion} evasion vs {attackValue} attack - " +
+								$"fails to evade, takes {damage} damage!";
+			}
+			
+			// Log combat action
+			LogCombat(new CombatLog
+			{
+				Action = CombatAction.Move,
+				ActorName = defender.Name,
+				DiceRoll = evasionRoll,
+				StaminaCost = 1,
+				AdditionalInfo = $"Evasion: {totalEvasion} vs Attack: {attackValue}, Difference: {evasionDifference}",
+				Timestamp = DateTime.Now
+			});
+			
+			return result;
+		}
         
         /// <summary>
         /// Handle taking damage without defense
@@ -237,16 +262,16 @@ namespace RPGGame.Combat
             target.TakeDamage(totalDamage);
             // Target's counter gauge is preserved (no reset)
             
-            var result = new AttackResult
-            {
-                Success = true,
-                Attacker = counterAttacker.Name,
-                Defender = target.Name,
-                AttackRoll = attackRoll,
-                BaseAttackDamage = totalDamage,
-                IsCounterAttack = true,
-                Message = $"⚡ {counterAttacker.Name} COUNTER ATTACKS {target.Name} for {totalDamage} damage! [BADMINTON STREAK!]"
-            };
+			var result = new AttackResult
+			{
+				Success = true,
+				Attacker = counterAttacker.Name,
+				Defender = target.Name,
+				AttackRoll = attackRoll,
+				BaseAttackDamage = totalDamage,
+				IsCounterAttack = true,
+				Message = $"⚡ {counterAttacker.Name} COUNTER ATTACKS {target.Name}: {attackRoll} + {counterAttacker.AttackPoints} ATK = {totalDamage} damage! [BADMINTON STREAK!]"
+			};
             
             // Log combat action
             LogCombat(new CombatLog
@@ -268,20 +293,6 @@ namespace RPGGame.Combat
         private bool CanDefend(Character character) => character.CanAct && character.CurrentStamina >= 2;
         
         // Utility methods
-        private string BuildDefenseMessage(Character defender, int totalDefense, int incomingDamage, int counterBuilt)
-        {
-            if (totalDefense >= incomingDamage)
-            {
-                string counterMsg = counterBuilt > 0 ? $" Counter +{counterBuilt}!" : "";
-                return $"{defender.Name} blocks completely!{counterMsg}";
-            }
-            else
-            {
-                int damage = incomingDamage - totalDefense;
-                return $"{defender.Name} partially blocks, takes {damage} damage.";
-            }
-        }
-        
         private void LogCombat(CombatLog log)
         {
             _combatHistory.Add(log);

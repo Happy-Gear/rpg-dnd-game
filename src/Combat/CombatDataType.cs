@@ -25,33 +25,36 @@ namespace RPGGame.Combat
         }
     }
     
-    /// <summary>
-    /// Result of a defense action
-    /// </summary>
-    public class DefenseResult
-    {
-        public DefenseChoice DefenseChoice { get; set; }
-        public DiceResult DefenseRoll { get; set; }
-        public int IncomingDamage { get; set; }
-        public int TotalDefense { get; set; }
-        public int DamageBlocked { get; set; }
-        public int FinalDamage { get; set; }
-        public int CounterBuilt { get; set; }
-        public bool CounterReady { get; set; }
-        public string Message { get; set; }
-        
-        public override string ToString()
-        {
-            return DefenseChoice switch
-            {
-                DefenseChoice.Defend => $"DEF: {DefenseRoll} = {TotalDefense} defense, blocked {DamageBlocked}, counter +{CounterBuilt}",
-                DefenseChoice.Move => "MOVED: Evaded completely",
-                DefenseChoice.TakeDamage => $"NO DEFENSE: Took {FinalDamage} damage",
-                _ => Message
-            };
-        }
-    }
-    
+	/// <summary>
+	/// Result of a defense action
+	/// </summary>
+	public class DefenseResult
+	{
+		public DefenseChoice DefenseChoice { get; set; }
+		public DiceResult DefenseRoll { get; set; }
+		public int IncomingDamage { get; set; }
+		public int TotalDefense { get; set; }
+		public int DamageBlocked { get; set; }
+		public int FinalDamage { get; set; }
+		public int CounterBuilt { get; set; }
+		public bool CounterReady { get; set; }
+		public string Message { get; set; }
+		
+		public bool CanMove { get; set; } = false;
+		public int MovementDistance { get; set; } = 0;
+		
+		public override string ToString()
+		{
+			return DefenseChoice switch
+			{
+				DefenseChoice.Defend => $"DEF: {DefenseRoll} = {TotalDefense} defense, blocked {DamageBlocked}, counter +{CounterBuilt}",
+				DefenseChoice.Move when CanMove => $"EVASION: {DefenseRoll} = {TotalDefense} evasion, avoided damage, can move {MovementDistance}",
+				DefenseChoice.Move => $"EVASION: {DefenseRoll} = {TotalDefense} evasion, failed to evade, took {FinalDamage} damage",
+				DefenseChoice.TakeDamage => $"NO DEFENSE: Took {FinalDamage} damage",
+				_ => Message
+			};
+		}
+	}
     /// <summary>
     /// Complete combat round result
     /// </summary>

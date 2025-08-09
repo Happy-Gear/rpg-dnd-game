@@ -12,9 +12,9 @@ namespace RPGGame
             Console.WriteLine("=====================================\n");
             
             // Create test characters
-            var alice = CreateCharacter("Alice", 12, 10, 8, 9, 11);
-            var bob = CreateCharacter("Bob", 14, 12, 6, 7, 8);
-            
+			var alice = CreateCharacter("Alice", 1, 0, 5, 5, 1, 5); // ATK:1, DEF:0, MOV:1
+			var bob = CreateCharacter("Bob", 2, 0, 5, 5, 0, 5);     // ATK:2, DEF:0, MOV:0
+						
             // Initialize game
             var game = new GameManager(16, 16);
             
@@ -49,10 +49,10 @@ namespace RPGGame
             Console.ReadKey();
         }
         
-        static Character CreateCharacter(string name, int str, int end, int cha, int intel, int agi)
-        {
-            var stats = new CharacterStats(str, end, cha, intel, agi);
-            return new Character(name, stats, health: 50, stamina: 15);
-        }
+		static Character CreateCharacter(string name, int str, int end, int cha, int intel, int agi, int wis)
+		{
+			var stats = new CharacterStats(str, end, cha, intel, agi, wis);
+			return new Character(name, stats, health: 10, stamina: 10);
+		}
     }
 }

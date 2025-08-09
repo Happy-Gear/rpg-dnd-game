@@ -21,7 +21,11 @@ namespace RPGGame.Core
         private bool _waitingForDefenseChoice;
         private AttackResult _pendingAttack;
         private Character _defendingCharacter;
-	private MovementSystem _movementSystem;
+        private MovementSystem _movementSystem;
+        
+        // Movement state management
+        private MovementResult _pendingMovement;
+        private bool _waitingForMovementTarget;
         
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
@@ -33,7 +37,9 @@ namespace RPGGame.Core
             _gridDisplay = new GridDisplay(gridWidth, gridHeight);
             _players = new List<Character>();
             _waitingForDefenseChoice = false;
-	    _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
+            _waitingForMovementTarget = false;
+            _pendingMovement = null;
+            _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
         }
         
         /// <summary>
@@ -73,6 +79,12 @@ namespace RPGGame.Core
                 return ProcessDefenseChoice(input);
             }
             
+            // Handle movement target selection if waiting for one
+            if (_waitingForMovementTarget)
+            {
+                return ProcessMovementTarget(input);
+            }
+            
             // Parse normal action
             var action = ParseAction(input);
             if (action == null)
@@ -98,6 +110,9 @@ namespace RPGGame.Core
                 case ActionChoice.Move:
                     result = HandleMoveAction(action.TargetPosition);
                     break;
+                case ActionChoice.Dash:
+                    result = HandleDashAction(action.TargetPosition);
+                    break;
                 case ActionChoice.Rest:
                     result = HandleRestAction();
                     break;
@@ -111,6 +126,66 @@ namespace RPGGame.Core
             
             _gridDisplay.UpdateCharacters(_players);
             return result;
+        }
+        
+        /// <summary>
+        /// Handle movement target selection
+        /// </summary>
+        private string ProcessMovementTarget(string input)
+        {
+            var parts = input.ToLower().Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (parts.Length >= 2 && int.TryParse(parts[0], out int x) && int.TryParse(parts[1], out int y))
+            {
+                var targetPosition = new Position(x, y);
+                
+                // Execute movement with stored dice result
+                if (_movementSystem.ExecuteMovement(_pendingMovement, targetPosition))
+                {
+                    var result = $"{_pendingMovement.Character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n";
+                    
+                    // Clear pending movement
+                    _waitingForMovementTarget = false;
+                    
+                    if (_pendingMovement.AllowsSecondAction)
+                    {
+                        // Simple move - allow second action
+                        result += "Used 1 stamina, can still act!\n\n";
+                        result += $"{_pendingMovement.Character.Name}'s turn continues...\n";
+                        result += "Available actions:\n";
+                        result += "  'attack [letter]' - Attack adjacent character\n";
+                        result += "  'move' - Move again (1d6)\n";
+                        result += "  'dash' - Dash move (2d6, ends turn)\n";
+                        result += "  'rest' - Recover stamina\n";
+                        result += "  'defend' - Take defensive stance";
+                        
+                        _pendingMovement = null;
+                        return _gridDisplay.CreateFullDisplay(result);
+                    }
+                    else
+                    {
+                        // Dash move - end turn
+                        result += "Used 1 stamina, turn ends.\n\n";
+                        var nextTurn = _turnManager.NextTurn();
+                        result += $"{nextTurn.Message}\n";
+                        result += GetTurnInstructions(nextTurn);
+                        
+                        _pendingMovement = null;
+                        return _gridDisplay.CreateFullDisplay(result);
+                    }
+                }
+                else
+                {
+                    return _gridDisplay.CreateFullDisplay(
+                        "Invalid position! Choose a position within your movement range.\n" +
+                        GetMovementOptions(_pendingMovement)
+                    );
+                }
+            }
+            else
+            {
+                return "Please enter coordinates as 'x y' (e.g., '5 7')";
+            }
         }
         
         /// <summary>
@@ -128,7 +203,7 @@ namespace RPGGame.Core
                 {
                     return _gridDisplay.CreateFullDisplay(
                         "No valid targets in range!\n" +
-                        "Move closer to attack. Use 'move x y' to reposition."
+                        "Move closer to attack. Use 'move' or 'dash' to reposition."
                     );
                 }
                 
@@ -218,42 +293,126 @@ namespace RPGGame.Core
         }
         
         /// <summary>
-        /// Handle movement action
+        /// Handle movement action with dice rolling
         /// </summary>
-        private string HandleMoveAction(Position targetPosition)
+        private string HandleMoveAction(Position targetPosition = null)
         {
             var character = CurrentActor;
             
-            if (targetPosition == null)
+            if (targetPosition != null)
             {
+                // Direct move to specific position - roll dice and execute immediately
+                var moveResult = _movementSystem.CalculateMovement(character, MovementType.Simple);
+                var result = $"{character.Name} rolls for movement: {moveResult.MoveRoll} = {moveResult.MaxDistance} movement points\n\n";
+                
+                if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
+                {
+                    result += $"{character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n";
+                    result += "Used 1 stamina, can still act!\n\n";
+                    result += $"{character.Name}'s turn continues...\n";
+                    result += "Available actions:\n";
+                    result += "  'attack [letter]' - Attack adjacent character\n";
+                    result += "  'move' - Move again (1d6)\n";
+                    result += "  'dash' - Dash move (2d6, ends turn)\n";
+                    result += "  'rest' - Recover stamina\n";
+                    result += "  'defend' - Take defensive stance";
+                    
+                    return _gridDisplay.CreateFullDisplay(result);
+                }
+                else
+                {
+                    return _gridDisplay.CreateFullDisplay(
+                        result + "Invalid move position! Choose a position within your movement range.\n" +
+                        GetMovementOptions(moveResult)
+                    );
+                }
+            }
+            else
+            {
+                // Show movement options - roll dice once and store result
+                _pendingMovement = _movementSystem.CalculateMovement(character, MovementType.Simple);
+                _waitingForMovementTarget = true;
+                
+                var result = $"{character.Name} rolls for movement: {_pendingMovement.MoveRoll} = {_pendingMovement.MaxDistance} movement points\n\n";
+                
                 return _gridDisplay.CreateFullDisplay(
-                    "Choose where to move:\n" +
-                    _gridDisplay.DrawMovementOptions(character) +
-                    "Use 'move x y' (e.g., 'move 3 4')"
+                    result + GetMovementOptions(_pendingMovement) + 
+                    "\n\nEnter coordinates as 'x y' (e.g., '5 7')"
                 );
             }
+        }
+
+        /// <summary>
+        /// Handle dash movement action
+        /// </summary>
+        private string HandleDashAction(Position targetPosition = null)
+        {
+            var character = CurrentActor;
             
-            // Validate movement
-            var validMoves = _gridDisplay.GetValidMovePositions(character);
-            if (!validMoves.Any(p => p.Equals(targetPosition)))
+            if (targetPosition != null)
             {
+                // Direct dash to specific position - roll dice and execute immediately
+                var moveResult = _movementSystem.CalculateMovement(character, MovementType.Dash);
+                var result = $"{character.Name} rolls for DASH: {moveResult.MoveRoll} = {moveResult.MaxDistance} movement points\n\n";
+                
+                if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
+                {
+                    var nextTurn = _turnManager.NextTurn();
+                    
+                    return _gridDisplay.CreateFullDisplay(
+                        result + $"{character.Name} dashed to ({targetPosition.X},{targetPosition.Y})\n" +
+                        $"Used 1 stamina, turn ends.\n\n" +
+                        $"{nextTurn.Message}\n" +
+                        GetTurnInstructions(nextTurn)
+                    );
+                }
+                else
+                {
+                    return _gridDisplay.CreateFullDisplay(
+                        result + "Invalid dash position! Choose a position within your movement range.\n" +
+                        GetMovementOptions(moveResult)
+                    );
+                }
+            }
+            else
+            {
+                // Show dash options - roll dice once and store result
+                _pendingMovement = _movementSystem.CalculateMovement(character, MovementType.Dash);
+                _waitingForMovementTarget = true;
+                
+                var result = $"{character.Name} rolls for DASH: {_pendingMovement.MoveRoll} = {_pendingMovement.MaxDistance} movement points\n\n";
+                
                 return _gridDisplay.CreateFullDisplay(
-                    "Invalid move position!\n" +
-                    _gridDisplay.DrawMovementOptions(character)
+                    result + GetMovementOptions(_pendingMovement) + 
+                    "\n\nEnter coordinates as 'x y' (e.g., '8 10')"
                 );
             }
+        }
+
+        /// <summary>
+        /// Get movement options display
+        /// </summary>
+        private string GetMovementOptions(MovementResult moveResult)
+        {
+            var options = $"Available positions within {moveResult.MaxDistance} movement:\n";
             
-            // Execute movement
-            character.UseStamina(1);
-            character.Position = targetPosition;
+            var sortedPositions = moveResult.ValidPositions
+                .OrderBy(p => p.X)
+                .ThenBy(p => p.Y)
+                .Take(20); // Limit display for readability
             
-            var nextTurn = _turnManager.NextTurn();
+            foreach (var pos in sortedPositions)
+            {
+                var distance = Math.Abs(moveResult.OriginalPosition.X - pos.X) + Math.Abs(moveResult.OriginalPosition.Y - pos.Y);
+                options += $"  → ({pos.X},{pos.Y}) [distance: {distance}]\n";
+            }
             
-            return _gridDisplay.CreateFullDisplay(
-                $"{character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n\n" +
-                $"{nextTurn.Message}\n" +
-                GetTurnInstructions(nextTurn)
-            );
+            if (moveResult.ValidPositions.Count > 20)
+            {
+                options += $"  ... and {moveResult.ValidPositions.Count - 20} more positions\n";
+            }
+            
+            return options;
         }
         
         /// <summary>
@@ -296,10 +455,10 @@ namespace RPGGame.Core
         {
             var positions = new List<Position>
             {
-                new Position(1, 1),
-                new Position(13, 13),
-                new Position(2, 6),
-                new Position(7, 1)
+                new Position(2, 2),   // Alice - bottom-left area
+                new Position(13, 13), // Bob - top-right area
+                new Position(2, 13),  // Player 3 - top-left area
+                new Position(13, 2)   // Player 4 - bottom-right area
             };
             
             for (int i = 0; i < _players.Count && i < positions.Count; i++)
@@ -334,6 +493,13 @@ namespace RPGGame.Core
                         return new ParsedAction { ActionType = ActionChoice.Move, TargetPosition = new Position(x, y) };
                     }
                     return new ParsedAction { ActionType = ActionChoice.Move };
+                    
+                case "dash":
+                    if (parts.Length >= 3 && int.TryParse(parts[1], out int dashX) && int.TryParse(parts[2], out int dashY))
+                    {
+                        return new ParsedAction { ActionType = ActionChoice.Dash, TargetPosition = new Position(dashX, dashY) };
+                    }
+                    return new ParsedAction { ActionType = ActionChoice.Dash };
                     
                 case "rest":
                     return new ParsedAction { ActionType = ActionChoice.Rest };
@@ -381,7 +547,9 @@ namespace RPGGame.Core
             if (turn.AvailableActions.Contains(ActionChoice.Attack))
                 instructions += "  'attack [letter]' - Attack adjacent character (e.g., 'attack B')\n";
             if (turn.AvailableActions.Contains(ActionChoice.Move))
-                instructions += "  'move x y' - Move to position (e.g., 'move 3 4')\n";
+                instructions += "  'move' - Roll 1d6 movement, allows second action\n";
+            if (turn.AvailableActions.Contains(ActionChoice.Move))
+                instructions += "  'dash' - Roll 2d6 movement, ends turn\n";
             if (turn.AvailableActions.Contains(ActionChoice.Rest))
                 instructions += "  'rest' - Recover stamina\n";
             if (turn.AvailableActions.Contains(ActionChoice.Defend))
@@ -399,10 +567,12 @@ namespace RPGGame.Core
         {
             return "Commands:\n" +
                    "  attack [letter] - Attack character (must be adjacent)\n" +
-                   "  move x y - Move to grid position\n" +
+                   "  move - Roll 1d6, move that distance, can act again\n" +
+                   "  dash - Roll 2d6, move that distance, turn ends\n" +
+                   "  move/dash x y - Move to specific position (if in range)\n" +
                    "  rest - Recover stamina\n" +
                    "  defend - Take defensive stance\n\n" +
-                   "Examples: 'attack B', 'move 3 4', 'rest'\n" +
+                   "Examples: 'attack B', 'move', 'dash 8 10', 'rest'\n" +
                    "Characters are shown by their first letter on the grid.";
         }
     }

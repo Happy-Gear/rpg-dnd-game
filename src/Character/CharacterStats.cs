@@ -3,7 +3,7 @@ using System;
 namespace RPGGame.Characters
 {
     /// <summary>
-    /// Character stats system - expandable for future 6-stat system
+    /// Character stats system - 6-stat system
     /// </summary>
     public class CharacterStats
     {
@@ -12,17 +12,18 @@ namespace RPGGame.Characters
         public int Charisma { get; set; } = 10;
         public int Intelligence { get; set; } = 10;
         public int Agility { get; set; } = 10;
-        // Future: Add 6th stat here
+        public int Wisdom { get; set; } = 10;  // Added Wisdom
         
         public CharacterStats() { }
         
-        public CharacterStats(int str, int end, int cha, int intel, int agi)
+        public CharacterStats(int str, int end, int cha, int intel, int agi, int wis)
         {
             Strength = str;
             Endurance = end;
             Charisma = cha;
             Intelligence = intel;
             Agility = agi;
+            Wisdom = wis;
         }
     }
 }

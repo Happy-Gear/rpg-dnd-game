@@ -45,23 +45,21 @@ namespace RPGGame.Characters
         }
         
         // Combat stat calculations (placeholder formulas)
-        private int CalculateAttack()
-        {
-            // Future: 3*STR + 2*END + AGI
-            return Stats.Strength * 3 + Stats.Endurance * 2 + Stats.Agility;
-        }
-        
-        private int CalculateDefense()
-        {
-            // Future: 2*END + STR + AGI
-            return Stats.Endurance * 2 + Stats.Strength + Stats.Agility;
-        }
-        
-        private int CalculateMovement()
-        {
-            // Future: 3*AGI + INT
-            return Stats.Agility * 3 + Stats.Intelligence;
-        }
+		// Combat stat calculations - simple direct stats
+		private int CalculateAttack()
+		{
+			return Stats.Strength; // Direct 1:1 mapping
+		}
+
+		private int CalculateDefense()
+		{
+			return Stats.Endurance; // Direct 1:1 mapping
+		}
+
+		private int CalculateMovement()
+		{
+			return Stats.Agility; // Direct 1:1 mapping for base movement
+		}
         
         // Resource management
         public bool UseStamina(int amount)

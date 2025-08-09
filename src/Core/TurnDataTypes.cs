@@ -7,13 +7,14 @@ namespace RPGGame.Core
     /// <summary>
     /// Available actions a character can take on their turn
     /// </summary>
-    public enum ActionChoice
-    {
-        Attack,    // 3 stamina, 2d6 + ATK mod damage
-        Defend,    // 2 stamina, 2d6 + DEF mod defense, build counter
-        Move,      // 1 stamina, reposition, tactical advantages
-        Rest       // 0 stamina, restore stamina, access special abilities
-    }
+	public enum ActionChoice
+	{
+		Attack,    // 3 stamina, 2d6 + ATK mod damage
+		Defend,    // 2 stamina, 2d6 + DEF mod defense, build counter
+		Move,      // 1 stamina, 1d6 movement, allows second action
+		Dash,      // 1 stamina, 2d6 movement, ends turn
+		Rest       // 0 stamina, restore stamina, access special abilities
+	}
     
     /// <summary>
     /// Types of turns in the game

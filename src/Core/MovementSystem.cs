@@ -47,53 +47,50 @@ namespace RPGGame.Core
         /// <summary>
         /// Simple move: 1d6 distance, allows second action
         /// </summary>
-        private MovementResult CalculateSimpleMove(Character character, Position targetDirection)
-        {
-            var moveRoll = _diceRoller.Roll1d6("Simple Move");
-            var distance = moveRoll.Total;
-            
-            var result = new MovementResult
-            {
-                Character = character,
-                MovementType = MovementType.Simple,
-                MoveRoll = moveRoll,
-                MaxDistance = distance,
-                StaminaCost = 1,
-                AllowsSecondAction = true,
-                OriginalPosition = new Position(character.Position.X, character.Position.Y)
-            };
-            
-            // Calculate available positions within rolled distance
-            result.ValidPositions = GetPositionsWithinDistance(character.Position, distance);
-            
-            return result;
-        }
-        
+		private MovementResult CalculateSimpleMove(Character character, Position targetDirection)
+		{
+			var moveRoll = _diceRoller.Roll1d6("Simple Move");
+			var baseDistance = moveRoll.Total;
+			var totalDistance = baseDistance + character.MovementPoints; // Add MOV stat!
+			
+			var result = new MovementResult
+			{
+				Character = character,
+				MovementType = MovementType.Simple,
+				MoveRoll = moveRoll,
+				MaxDistance = totalDistance, // Use total distance
+				StaminaCost = 1,
+				AllowsSecondAction = true,
+				OriginalPosition = new Position(character.Position.X, character.Position.Y)
+			};
+			
+			result.ValidPositions = GetPositionsWithinDistance(character.Position, totalDistance);
+			return result;
+		}
         /// <summary>
         /// Dash move: 2d6 distance, ends turn
         /// </summary>
-        private MovementResult CalculateDashMove(Character character, Position targetDirection)
-        {
-            var moveRoll = _diceRoller.Roll2d6("Dash Move");
-            var distance = moveRoll.Total;
-            
-            var result = new MovementResult
-            {
-                Character = character,
-                MovementType = MovementType.Dash,
-                MoveRoll = moveRoll,
-                MaxDistance = distance,
-                StaminaCost = 1,
-                AllowsSecondAction = false,
-                OriginalPosition = new Position(character.Position.X, character.Position.Y)
-            };
-            
-            // Calculate available positions within rolled distance
-            result.ValidPositions = GetPositionsWithinDistance(character.Position, distance);
-            
-            return result;
-        }
-        
+		private MovementResult CalculateDashMove(Character character, Position targetDirection)
+		{
+			var moveRoll = _diceRoller.Roll2d6("Dash Move");
+			var baseDistance = moveRoll.Total;
+			var totalDistance = baseDistance + character.MovementPoints; // Add MOV stat!
+			
+			var result = new MovementResult
+			{
+				Character = character,
+				MovementType = MovementType.Dash,
+				MoveRoll = moveRoll,
+				MaxDistance = totalDistance, // Use total distance
+				StaminaCost = 1,
+				AllowsSecondAction = false,
+				OriginalPosition = new Position(character.Position.X, character.Position.Y)
+			};
+			
+			result.ValidPositions = GetPositionsWithinDistance(character.Position, totalDistance);
+			return result;
+		}
+				
         /// <summary>
         /// Get all valid positions within movement distance
         /// </summary>
@@ -183,20 +180,20 @@ namespace RPGGame.Core
         public Position FinalPosition { get; set; }
         public List<Position> ValidPositions { get; set; } = new List<Position>();
         
-        public override string ToString()
-        {
-            string moveType = MovementType == MovementType.Simple ? "Simple Move" : "Dash";
-            string secondAction = AllowsSecondAction ? " (can act again)" : " (turn ends)";
-            
-            if (FinalPosition != null)
-            {
-                return $"{Character.Name} {moveType}: {MoveRoll} = {MaxDistance} max distance, " +
-                       $"moved {ActualDistance} spaces to ({FinalPosition.X},{FinalPosition.Y}){secondAction}";
-            }
-            else
-            {
-                return $"{Character.Name} {moveType}: {MoveRoll} = {MaxDistance} movement points available{secondAction}";
-            }
-        }
+		public override string ToString()
+		{
+			string moveType = MovementType == MovementType.Simple ? "Simple Move" : "Dash";
+			string secondAction = AllowsSecondAction ? " (can act again)" : " (turn ends)";
+			
+			if (FinalPosition != null)
+			{
+				return $"{Character.Name} {moveType}: {MoveRoll} + {Character.MovementPoints} MOV = {MaxDistance} total, " +
+					   $"moved {ActualDistance} spaces to ({FinalPosition.X},{FinalPosition.Y}){secondAction}";
+			}
+			else
+			{
+				return $"{Character.Name} {moveType}: {MoveRoll} + {Character.MovementPoints} MOV = {MaxDistance} movement points{secondAction}";
+			}
+		}
     }
 }

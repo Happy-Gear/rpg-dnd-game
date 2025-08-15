@@ -244,10 +244,7 @@ We welcome contributions from the community! Please see our [Contributing Guidel
 
 ## 📞 Contact & Support
 
-- **Issues**: [GitHub Issues](https://github.com/Happy-Gear/rpg-dnd-game/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Happy-Gear/rpg-dnd-game/discussions)
-- **Discord**: [Join our community](https://discord.gg/rpg-combat-engine)
-- **Email**: [contact@rpg-combat-engine.dev](mailto:contact@rpg-combat-engine.dev)
+- **so far only me**:
 
 ---
 

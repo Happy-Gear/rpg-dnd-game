@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Combat Engine - Project Gantt Chart</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .project-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .info-card h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-card p {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .gantt-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        .gantt-chart {
+            min-width: 1200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .gantt-header {
+            display: grid;
+            grid-template-columns: 300px repeat(16, 1fr);
+            background: #34495e;
+            color: white;
+            font-weight: bold;
+        }
+
+        .gantt-header div {
+            padding: 15px 10px;
+            text-align: center;
+            border-right: 1px solid #2c3e50;
+            font-size: 0.9em;
+        }
+
+        .gantt-header div:first-child {
+            text-align: left;
+            background: #2c3e50;
+        }
+
+        .gantt-row {
+            display: grid;
+            grid-template-columns: 300px repeat(16, 1fr);
+            border-bottom: 1px solid #ecf0f1;
+            min-height: 50px;
+            align-items: center;
+        }
+
+        .gantt-row:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .gantt-row:hover {
+            background: #e3f2fd;
+        }
+
+        .task-name {
+            padding: 15px;
+            font-weight: 500;
+            border-right: 1px solid #ddd;
+            background: white;
+        }
+
+        .phase-header {
+            background: #3498db !important;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .task-bar {
+            margin: 5px 2px;
+            border-radius: 4px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .foundation { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .mechanics { background: linear-gradient(135deg, #f39c12, #d35400); }
+        .architecture { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .multiplayer { background: linear-gradient(135deg, #27ae60, #229954); }
+        .testing { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .integration { background: linear-gradient(135deg, #e67e22, #d68910); }
+
+        .milestone {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
+            border: 2px solid #c0392b;
+            position: relative;
+        }
+
+        .milestone::after {
+            content: '🎯';
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2em;
+        }
+
+        .dependency {
+            border: 2px dashed #95a5a6;
+            background: rgba(149, 165, 166, 0.2) !important;
+            color: #2c3e50 !important;
+        }
+
+        .critical-path {
+            box-shadow: 0 0 0 2px #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+
+        .legend {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .legend h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .risk-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background: #e74c3c;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .progress-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            animation: progress-fill 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes progress-fill {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .notes {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+        }
+
+        .notes h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .notes ul {
+            color: #856404;
+            padding-left: 20px;
+        }
+
+        .notes li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .gantt-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 RPG Combat Engine</h1>
+            <p>4-Month Multiplayer Prototype Development Timeline</p>
+        </div>
+
+        <div class="project-info">
+            <div class="info-card">
+                <h3>Total Duration</h3>
+                <p>16 Weeks</p>
+            </div>
+            <div class="info-card">
+                <h3>Sprint Length</h3>
+                <p>1 Week</p>
+            </div>
+            <div class="info-card">
+                <h3>Team Size</h3>
+                <p>2 Core + Contractors</p>
+            </div>
+            <div class="info-card">
+                <h3>Budget/Week</h3>
+                <p>$100</p>
+            </div>
+            <div class="info-card">
+                <h3>Target</h3>
+                <p>Multiplayer Prototype</p>
+            </div>
+        </div>
+
+        <div class="gantt-container">
+            <div class="gantt-chart">
+                <div class="gantt-header">
+                    <div>Task / Phase</div>
+                    <div>W1</div><div>W2</div><div>W3</div><div>W4</div>
+                    <div>W5</div><div>W6</div><div>W7</div><div>W8</div>
+                    <div>W9</div><div>W10</div><div>W11</div><div>W12</div>
+                    <div>W13</div><div>W14</div><div>W15</div><div>W16</div>
+                </div>
+
+                <!-- PHASE 1: FOUNDATION (Weeks 1-4) -->
+                <div class="gantt-row">
+                    <div class="task-name phase-header">🏗️ PHASE 1: TECHNICAL FOUNDATION</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">📋 Coding Standards & Documentation</div>
+                    <div><div class="task-bar foundation critical-path">DONE<div class="progress-overlay"></div></div></div>
+                    <div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🧪 Test Infrastructure Setup</div>
+                    <div><div class="task-bar foundation critical-path">W1<div class="progress-overlay"></div></div></div>
+                    <div><div class="task-bar foundation">W2</div></div>
+                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🔧 GameManager Refactor</div>
+                    <div><div class="task-bar foundation critical-path">W1<div class="progress-overlay"></div></div></div>
+                    <div><div class="task-bar foundation">W2</div></div>
+                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🔒 Security Audit (Contractor)</div>
+                    <div><div class="task-bar foundation">SEC</div></div>
+                    <div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">⚖️ Game Balance Configuration System</div>
+                    <div></div>
+                    <div><div class="task-bar mechanics">W2</div></div>
+                    <div><div class="task-bar mechanics">W3</div></div>
+                    <div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎯 Milestone: Stable Foundation</div>
+                    <div></div><div></div><div></div>
+                    <div><div class="task-bar milestone">M1</div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <!-- PHASE 2: ENHANCED MECHANICS (Weeks 5-8) -->
+                <div class="gantt-row">
+                    <div class="task-name phase-header">⚔️ PHASE 2: ENHANCED MECHANICS</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎮 Status Effects System</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div><div class="task-bar mechanics">W5</div></div>
+                    <div><div class="task-bar mechanics">W6</div></div>
+                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🏺 Equipment System</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div>
+                    <div><div class="task-bar mechanics">W6</div></div>
+                    <div><div class="task-bar mechanics">W7</div></div>
+                    <div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">💥 Area-of-Effect Abilities</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div>
+                    <div><div class="task-bar mechanics">W7</div></div>
+                    <div><div class="task-bar mechanics">W8</div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎯 Milestone: Enhanced Combat</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div>
+                    <div><div class="task-bar milestone">M2</div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <!-- PHASE 3: MULTIPLAYER ARCHITECTURE (Weeks 9-12) -->
+                <div class="gantt-row">
+                    <div class="task-name phase-header">🌐 PHASE 3: MULTIPLAYER ARCHITECTURE</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🔗 Network Infrastructure Design</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div><div class="task-bar architecture critical-path">W9<div class="risk-indicator"></div></div></div>
+                    <div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🖥️ Client-Server Architecture</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div>
+                    <div><div class="task-bar architecture critical-path">W10<div class="risk-indicator"></div></div></div>
+                    <div><div class="task-bar architecture">W11</div></div>
+                    <div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🔄 State Synchronization</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div>
+                    <div><div class="task-bar architecture">W11</div></div>
+                    <div><div class="task-bar architecture">W12</div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🛡️ Anti-cheat & Validation</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div>
+                    <div><div class="task-bar architecture">W12</div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎯 Milestone: Network Ready</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div>
+                    <div><div class="task-bar milestone">M3</div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <!-- PHASE 4: INTEGRATION & TESTING (Weeks 13-16) -->
+                <div class="gantt-row">
+                    <div class="task-name phase-header">🔧 PHASE 4: INTEGRATION & POLISH</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎮 Multiplayer Game Logic</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div><div class="task-bar multiplayer critical-path">W13</div></div>
+                    <div><div class="task-bar multiplayer">W14</div></div>
+                    <div></div><div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🧪 Integration Testing</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div>
+                    <div><div class="task-bar testing">W14</div></div>
+                    <div><div class="task-bar testing">W15</div></div>
+                    <div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">⚡ Performance Optimization</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div>
+                    <div><div class="task-bar integration">W15</div></div>
+                    <div><div class="task-bar integration">W16</div></div>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="task-name">🎯 FINAL: Multiplayer Prototype</div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
+                    <div></div><div></div><div></div>
+                    <div><div class="task-bar milestone">SHIP</div></div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h3>📊 Legend & Status</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color foundation"></div>
+                        <span>Foundation Work</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color mechanics"></div>
+                        <span>Game Mechanics</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color architecture"></div>
+                        <span>Architecture</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color multiplayer"></div>
+                        <span>Multiplayer</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color testing"></div>
+                        <span>Testing</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color integration"></div>
+                        <span>Integration</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notes">
+                <h4>📝 Critical Path & Risk Assessment</h4>
+                <ul>
+                    <li><strong>Critical Path:</strong> Foundation → Network Architecture → Multiplayer Logic</li>
+                    <li><strong>High Risk (🔴):</strong> Network Infrastructure Design (Week 9-10) - Complex, may need specialist</li>
+                    <li><strong>Parallel Work:</strong> Game mechanics can develop alongside architecture phases</li>
+                    <li><strong>Contractor Budget:</strong> $1,600 total ($100/week × 16 weeks) for specialized tasks</li>
+                    <li><strong>Buffer Time:</strong> Week 15-16 includes optimization buffer for final polish</li>
+                    <li><strong>Dependencies:</strong> All multiplayer work depends on solid foundation (Weeks 1-4)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add interactive features
+        document.querySelectorAll('.gantt-row').forEach(row => {
+            row.addEventListener('click', function() {
+                const taskName = this.querySelector('.task-name').textContent;
+                console.log(`Clicked on: ${taskName}`);
+            });
+        });
+
+        // Simulate progress updates
+        function updateProgress() {
+            document.querySelectorAll('.progress-overlay').forEach(overlay => {
+                overlay.style.animation = 'progress-fill 3s ease-in-out infinite alternate';
+            });
+        }
+
+        // Initialize progress animation
+        updateProgress();
+    </script>
+</body>
+</html>

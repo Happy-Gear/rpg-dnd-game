@@ -32,6 +32,11 @@ namespace RPGGame.Core
         private DefenseResult _pendingEvasionResult;
         private Character _evadingCharacter;
         
+        // Action economy tracking - FIX FOR THE MOVE ACTION BUG
+        private int _actionsUsedThisTurn;
+        private int _maxActionsThisTurn;
+        private bool _firstActionWasMove; // Track if first action allows second action
+        
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
         
@@ -48,6 +53,45 @@ namespace RPGGame.Core
             _pendingEvasionResult = null;
             _evadingCharacter = null;
             _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
+            
+            // Initialize action tracking
+            ResetActionTracking();
+        }
+        
+        /// <summary>
+        /// Reset action tracking for a new turn
+        /// </summary>
+        private void ResetActionTracking()
+        {
+            _actionsUsedThisTurn = 0;
+            _maxActionsThisTurn = 1; // Default: most actions end turn
+            _firstActionWasMove = false;
+        }
+        
+        /// <summary>
+        /// Check if the current actor can perform another action this turn
+        /// </summary>
+        private bool CanPerformAnotherAction()
+        {
+            return _actionsUsedThisTurn < _maxActionsThisTurn;
+        }
+        
+        /// <summary>
+        /// Record that an action was used and determine if more actions are allowed
+        /// </summary>
+        private bool UseAction(bool allowsSecondAction = false)
+        {
+            _actionsUsedThisTurn++;
+            
+            // If this is the first action and it allows a second action, increase limit
+            if (_actionsUsedThisTurn == 1 && allowsSecondAction)
+            {
+                _maxActionsThisTurn = 2;
+                _firstActionWasMove = true;
+            }
+            
+            // Return true if turn should continue, false if turn should end
+            return CanPerformAnotherAction();
         }
         
         /// <summary>
@@ -64,8 +108,9 @@ namespace RPGGame.Core
             _turnManager.StartCombat(_players.ToArray());
             _gridDisplay.UpdateCharacters(_players);
             
-            // Get first turn
+            // Get first turn and reset action tracking
             var firstTurn = _turnManager.NextTurn();
+            ResetActionTracking();
             
             return _gridDisplay.CreateFullDisplay(
                 $"Game started! {firstTurn.Message}\n" +
@@ -99,6 +144,13 @@ namespace RPGGame.Core
                 return ProcessMovementTarget(input);
             }
             
+            // Check if player can perform another action this turn
+            if (!CanPerformAnotherAction())
+            {
+                return "You have used all your actions this turn. Advancing to next turn...\n\n" + 
+                       AdvanceToNextTurn();
+            }
+            
             // Parse normal action
             var action = ParseAction(input);
             if (action == null)
@@ -107,6 +159,21 @@ namespace RPGGame.Core
             }
             
             return ExecuteAction(action);
+        }
+        
+        /// <summary>
+        /// Advance to the next turn and reset action tracking
+        /// </summary>
+        private string AdvanceToNextTurn()
+        {
+            var nextTurn = _turnManager.NextTurn();
+            ResetActionTracking();
+            _gridDisplay.UpdateCharacters(_players);
+            
+            return _gridDisplay.CreateFullDisplay(
+                $"{nextTurn.Message}\n" +
+                GetTurnInstructions(nextTurn)
+            );
         }
         
         /// <summary>
@@ -171,14 +238,10 @@ namespace RPGGame.Core
                     _pendingEvasionResult = null;
                     _evadingCharacter = null;
                     
-                    // Continue to next turn
-                    var nextTurn = _turnManager.NextTurn();
-                    
+                    // Continue to next turn and reset action tracking
                     return _gridDisplay.CreateFullDisplay(
-                        $"{characterName} moves to ({targetPosition.X},{targetPosition.Y}) after evasion.\n\n" +
-                        $"{nextTurn.Message}\n" +
-                        GetTurnInstructions(nextTurn)
-                    );
+                        $"{characterName} moves to ({targetPosition.X},{targetPosition.Y}) after evasion.\n\n"
+                    ) + AdvanceToNextTurn();
                 }
                 else
                 {
@@ -193,13 +256,9 @@ namespace RPGGame.Core
                 _pendingEvasionResult = null;
                 _evadingCharacter = null;
                 
-                var nextTurn = _turnManager.NextTurn();
-                
                 return _gridDisplay.CreateFullDisplay(
-                    $"{characterName} skips evasion movement.\n\n" +
-                    $"{nextTurn.Message}\n" +
-                    GetTurnInstructions(nextTurn)
-                );
+                    $"{characterName} skips evasion movement.\n\n"
+                ) + AdvanceToNextTurn();
             }
             else
             {
@@ -228,29 +287,40 @@ namespace RPGGame.Core
                     
                     if (_pendingMovement.AllowsSecondAction)
                     {
-                        // Simple move - allow second action
-                        result += "Used 1 stamina, can still act!\n\n";
-                        result += $"{_pendingMovement.Character.Name}'s turn continues...\n";
-                        result += "Available actions:\n";
-                        result += "  'attack [letter]' - Attack adjacent character\n";
-                        result += "  'move' - Move again (1d6)\n";
-                        result += "  'dash' - Dash move (2d6, ends turn)\n";
-                        result += "  'rest' - Recover stamina\n";
-                        result += "  'defend' - Take defensive stance";
+                        // Simple move - record action and check if turn continues
+                        bool turnContinues = UseAction(allowsSecondAction: true);
                         
-                        _pendingMovement = null;
-                        return _gridDisplay.CreateFullDisplay(result);
+                        if (turnContinues)
+                        {
+                            result += "Used 1 stamina, can still act once more!\n\n";
+                            result += $"{_pendingMovement.Character.Name}'s turn continues...\n";
+                            result += $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n";
+                            result += "Available actions:\n";
+                            result += "  'attack [letter]' - Attack adjacent character\n";
+                            result += "  'move' - Move again (1d6)\n";
+                            result += "  'dash' - Dash move (2d6, ends turn)\n";
+                            result += "  'rest' - Recover stamina\n";
+                            result += "  'defend' - Take defensive stance";
+                            
+                            _pendingMovement = null;
+                            return _gridDisplay.CreateFullDisplay(result);
+                        }
+                        else
+                        {
+                            // Turn should end (shouldn't normally happen for simple moves)
+                            result += "Turn ends.\n\n";
+                            _pendingMovement = null;
+                            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
+                        }
                     }
                     else
                     {
-                        // Dash move - end turn
+                        // Dash move - record action (ends turn)
+                        UseAction(allowsSecondAction: false);
                         result += "Used 1 stamina, turn ends.\n\n";
-                        var nextTurn = _turnManager.NextTurn();
-                        result += $"{nextTurn.Message}\n";
-                        result += GetTurnInstructions(nextTurn);
                         
                         _pendingMovement = null;
-                        return _gridDisplay.CreateFullDisplay(result);
+                        return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
                     }
                 }
                 else
@@ -302,7 +372,7 @@ namespace RPGGame.Core
                 );
             }
             
-            // Execute attack
+            // Execute attack and record action (attacks always end turn after defense)
             var attackResult = _combatSystem.ExecuteAttack(attacker, target);
             
             if (!attackResult.Success)
@@ -340,6 +410,9 @@ namespace RPGGame.Core
             var defenseResult = _combatSystem.ResolveDefense(_defendingCharacter, _pendingAttack, choice.Value);
             
             var resultMessage = $"{_pendingAttack.Message}\n{defenseResult.Message}\n";
+            
+            // Record the attack action (attacks end turns after resolution)
+            UseAction(allowsSecondAction: false);
             
             // Handle movement after successful evasion
             if (defenseResult.DefenseChoice == DefenseChoice.Move && defenseResult.CanMove)
@@ -393,13 +466,8 @@ namespace RPGGame.Core
                 );
             }
             
-            // Move to next turn
-            var nextTurn = _turnManager.NextTurn();
-            
-            return _gridDisplay.CreateFullDisplay(
-                resultMessage + $"\n{nextTurn.Message}\n" +
-                GetTurnInstructions(nextTurn)
-            );
+            // Move to next turn and reset action tracking
+            return _gridDisplay.CreateFullDisplay(resultMessage + "\n") + AdvanceToNextTurn();
         }
         
         /// <summary>
@@ -417,17 +485,31 @@ namespace RPGGame.Core
                 
                 if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
                 {
-                    result += $"{character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n";
-                    result += "Used 1 stamina, can still act!\n\n";
-                    result += $"{character.Name}'s turn continues...\n";
-                    result += "Available actions:\n";
-                    result += "  'attack [letter]' - Attack adjacent character\n";
-                    result += "  'move' - Move again (1d6)\n";
-                    result += "  'dash' - Dash move (2d6, ends turn)\n";
-                    result += "  'rest' - Recover stamina\n";
-                    result += "  'defend' - Take defensive stance";
+                    // Record action and check if turn continues
+                    bool turnContinues = UseAction(allowsSecondAction: true);
                     
-                    return _gridDisplay.CreateFullDisplay(result);
+                    result += $"{character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n";
+                    
+                    if (turnContinues)
+                    {
+                        result += "Used 1 stamina, can still act once more!\n\n";
+                        result += $"{character.Name}'s turn continues...\n";
+                        result += $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n";
+                        result += "Available actions:\n";
+                        result += "  'attack [letter]' - Attack adjacent character\n";
+                        result += "  'move' - Move again (1d6)\n";
+                        result += "  'dash' - Dash move (2d6, ends turn)\n";
+                        result += "  'rest' - Recover stamina\n";
+                        result += "  'defend' - Take defensive stance";
+                        
+                        return _gridDisplay.CreateFullDisplay(result);
+                    }
+                    else
+                    {
+                        // Turn ends after second action
+                        result += "Used second action, turn ends.\n\n";
+                        return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
+                    }
                 }
                 else
                 {
@@ -467,14 +549,13 @@ namespace RPGGame.Core
                 
                 if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
                 {
-                    var nextTurn = _turnManager.NextTurn();
+                    // Record action (dash always ends turn)
+                    UseAction(allowsSecondAction: false);
                     
-                    return _gridDisplay.CreateFullDisplay(
-                        result + $"{character.Name} dashed to ({targetPosition.X},{targetPosition.Y})\n" +
-                        $"Used 1 stamina, turn ends.\n\n" +
-                        $"{nextTurn.Message}\n" +
-                        GetTurnInstructions(nextTurn)
-                    );
+                    result += $"{character.Name} dashed to ({targetPosition.X},{targetPosition.Y})\n";
+                    result += "Used 1 stamina, turn ends.\n\n";
+                    
+                    return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
                 }
                 else
                 {
@@ -534,13 +615,11 @@ namespace RPGGame.Core
             var staminaRestored = Math.Min(5, character.MaxStamina - character.CurrentStamina);
             character.RestoreStamina(staminaRestored);
             
-            var nextTurn = _turnManager.NextTurn();
+            // Record action (rest ends turn)
+            UseAction(allowsSecondAction: false);
             
-            return _gridDisplay.CreateFullDisplay(
-                $"{character.Name} rests and recovers {staminaRestored} stamina.\n\n" +
-                $"{nextTurn.Message}\n" +
-                GetTurnInstructions(nextTurn)
-            );
+            var result = $"{character.Name} rests and recovers {staminaRestored} stamina.\n\n";
+            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
         }
         
         /// <summary>
@@ -549,13 +628,12 @@ namespace RPGGame.Core
         private string HandleDefendAction()
         {
             var character = CurrentActor;
-            var nextTurn = _turnManager.NextTurn();
             
-            return _gridDisplay.CreateFullDisplay(
-                $"{character.Name} takes a defensive stance.\n\n" +
-                $"{nextTurn.Message}\n" +
-                GetTurnInstructions(nextTurn)
-            );
+            // Record action (defend ends turn)
+            UseAction(allowsSecondAction: false);
+            
+            var result = $"{character.Name} takes a defensive stance.\n\n";
+            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
         }
         
         /// <summary>
@@ -677,13 +755,15 @@ namespace RPGGame.Core
         {
             return "Commands:\n" +
                    "  attack [letter] - Attack character (must be adjacent)\n" +
-                   "  move - Roll 1d6, move that distance, can act again\n" +
+                   "  move - Roll 1d6, move that distance, can act again ONCE\n" +
                    "  dash - Roll 2d6, move that distance, turn ends\n" +
                    "  move/dash x y - Move to specific position (if in range)\n" +
                    "  rest - Recover stamina\n" +
                    "  defend - Take defensive stance\n\n" +
                    "Examples: 'attack B', 'move', 'dash 8 10', 'rest'\n" +
-                   "Characters are shown by their first letter on the grid.";
+                   "Characters are shown by their first letter on the grid.\n\n" +
+                   "Action Economy: Most actions end your turn immediately.\n" +
+                   "Only 'move' allows one additional action before ending turn.";
         }
     }
     

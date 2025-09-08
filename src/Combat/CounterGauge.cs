@@ -17,10 +17,15 @@ namespace RPGGame.Combat
         
         /// <summary>
         /// Add counter points from successful over-defense
+        /// Only positive values are added (negative values are ignored)
         /// </summary>
         public void AddCounter(int amount)
         {
-            _current = Math.Min(MAX_COUNTER, _current + amount);
+            // Only add positive amounts (prevent counter reduction via negative values)
+            if (amount > 0)
+            {
+                _current = Math.Min(MAX_COUNTER, _current + amount);
+            }
         }
         
         /// <summary>

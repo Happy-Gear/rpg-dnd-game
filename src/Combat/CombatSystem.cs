@@ -24,6 +24,12 @@ namespace RPGGame.Combat
         /// </summary>
         public AttackResult ExecuteAttack(Character attacker, Character defender)
         {
+            // Validate inputs
+            if (attacker == null)
+                throw new ArgumentNullException(nameof(attacker));
+            if (defender == null)
+                throw new ArgumentNullException(nameof(defender));
+            
             // Validate attack can happen
             if (!CanAttack(attacker))
             {
@@ -69,6 +75,12 @@ namespace RPGGame.Combat
         /// </summary>
 		public DefenseResult ResolveDefense(Character defender, AttackResult incomingAttack, DefenseChoice choice)
 		{
+            // Validate inputs
+            if (defender == null)
+                throw new ArgumentNullException(nameof(defender));
+            if (incomingAttack == null)
+                throw new ArgumentNullException(nameof(incomingAttack));
+            
 			var result = new DefenseResult();
 			
 			switch (choice)
@@ -132,6 +144,7 @@ namespace RPGGame.Combat
 				FinalDamage = finalDamage,
 				CounterBuilt = overDefense,
 				CounterReady = defender.Counter.IsReady,
+				IncomingDamage = incomingAttack.BaseAttackDamage,
 				Message = $"{defender.Name} defends: {defenseRoll} + {defender.DefensePoints} DEF = {totalDefense} defense" +
 						 (finalDamage > 0 ? $" - takes {finalDamage} damage" : " - blocks completely!") +
 						 (overDefense > 0 ? $" Counter +{overDefense}!" : "")
@@ -175,6 +188,7 @@ namespace RPGGame.Combat
 				DefenseChoice = DefenseChoice.Move,
 				DefenseRoll = evasionRoll, // Store the evasion roll
 				TotalDefense = totalEvasion,
+				IncomingDamage = attackValue,
 				CounterReady = defender.Counter.IsReady
 			};
 			
@@ -231,6 +245,7 @@ namespace RPGGame.Combat
             {
                 DefenseChoice = DefenseChoice.TakeDamage,
                 FinalDamage = incomingAttack.BaseAttackDamage,
+                IncomingDamage = incomingAttack.BaseAttackDamage,
                 CounterBuilt = 0,
                 CounterReady = defender.Counter.IsReady,
                 Message = message
@@ -242,6 +257,12 @@ namespace RPGGame.Combat
         /// </summary>
         public AttackResult ExecuteCounterAttack(Character counterAttacker, Character target)
         {
+            // Validate inputs
+            if (counterAttacker == null)
+                throw new ArgumentNullException(nameof(counterAttacker));
+            if (target == null)
+                throw new ArgumentNullException(nameof(target));
+            
             if (!counterAttacker.Counter.IsReady)
             {
                 return new AttackResult

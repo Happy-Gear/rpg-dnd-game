@@ -8,7 +8,7 @@ This checklist tracks automated test coverage for all major systems and scenario
 
 ### **Phase 1: Complete Foundation (30 min)**
 - [x] CharacterTests.cs - Basic character logic and DTOs
-- [ ] CounterGaugeTests.cs - Counter gauge mechanics
+- [x] CounterGaugeTests.cs - Counter gauge mechanics
 
 ---
 

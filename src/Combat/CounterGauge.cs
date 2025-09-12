@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace RPGGame.Combat
 {
@@ -7,6 +8,7 @@ namespace RPGGame.Combat
     /// </summary>
     public class CounterGauge
     {
+		[JsonInclude]
         private int _current = 0;
         private const int MAX_COUNTER = 6;
         

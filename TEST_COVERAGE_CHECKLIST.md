@@ -27,18 +27,18 @@ This checklist tracks automated test coverage for all major systems and scenario
 
 ### **Phase 3: Core Systems Testing (4-5 hours)** 🚧 **READY TO START**
 **Dependency order recommended:**
-- [ ] CombatSystemTests.cs ⭐ **NEXT PRIORITY - CRITICAL**
+- [x] CombatSystemTests.cs ⭐ **NEXT PRIORITY - CRITICAL**
   - Attack mechanics
   - Defense choices (DEF/MOV/TAKE)
   - Counter gauge building
   - Badminton streak activation
   - Edge cases (no stamina, dead characters)
-- [ ] MovementSystemTests.cs
+- [x] MovementSystemTests.cs
   - 1d6 vs 2d6 movement
   - Stat-based movement calculations
   - Grid boundary validation
   - Manhattan distance checks
-- [ ] TurnManagerTests.cs
+- [x] TurnManagerTests.cs
   - Turn order logic
   - Action availability per turn
   - Counter-attack interrupts

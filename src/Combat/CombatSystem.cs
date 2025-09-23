@@ -255,34 +255,43 @@ namespace RPGGame.Combat
         /// <summary>
         /// Execute counter attack (badminton streak)
         /// </summary>
-        public AttackResult ExecuteCounterAttack(Character counterAttacker, Character target)
-        {
-            // Validate inputs
-            if (counterAttacker == null)
-                throw new ArgumentNullException(nameof(counterAttacker));
-            if (target == null)
-                throw new ArgumentNullException(nameof(target));
-            
-            if (!counterAttacker.Counter.IsReady)
-            {
-                return new AttackResult
-                {
-                    Success = false,
-                    Message = $"{counterAttacker.Name} counter gauge not ready!"
-                };
-            }
-            
-            // Consume counter gauge
-            counterAttacker.Counter.ConsumeCounter();
-            
-            // Counter attacks are "free" (no stamina cost) but use same damage system
-            var attackRoll = DiceRoller.Roll2d6("COUNTER");
-            int totalDamage = attackRoll.Total + counterAttacker.AttackPoints;
-            
-            // Counter attacks bypass defense (immediate damage)
-            target.TakeDamage(totalDamage);
-            // Target's counter gauge is preserved (no reset)
-            
+		public AttackResult ExecuteCounterAttack(Character counterAttacker, Character target)
+		{
+			// Validate inputs
+			if (counterAttacker == null)
+				throw new ArgumentNullException(nameof(counterAttacker));
+			if (target == null)
+				throw new ArgumentNullException(nameof(target));
+			
+			// Counter should already be consumed by HandleCounterAttackTurn
+			// But check anyway for safety
+			if (counterAttacker.Counter.Current < counterAttacker.Counter.Maximum)
+			{
+				// Counter was already consumed - this is expected for counter turns
+				// Continue with counter attack at full power
+			}
+			else if (counterAttacker.Counter.IsReady)
+			{
+				// Counter still ready - consume it now (legacy path)
+				counterAttacker.Counter.ConsumeCounter();
+			}
+			else
+			{
+				// No counter available
+				return new AttackResult
+				{
+					Success = false,
+					Message = $"{counterAttacker.Name} counter gauge not ready!"
+				};
+			}
+			
+			// Execute counter attack at full power (always uses maximum counter value)
+			var attackRoll = DiceRoller.Roll2d6("COUNTER");
+			int totalDamage = attackRoll.Total + counterAttacker.AttackPoints;
+			
+			// Counter attacks bypass defense (immediate damage)
+			target.TakeDamage(totalDamage);
+			
 			var result = new AttackResult
 			{
 				Success = true,
@@ -293,22 +302,21 @@ namespace RPGGame.Combat
 				IsCounterAttack = true,
 				Message = $"⚡ {counterAttacker.Name} COUNTER ATTACKS {target.Name}: {attackRoll} + {counterAttacker.AttackPoints} ATK = {totalDamage} damage! [BADMINTON STREAK!]"
 			};
-            
-            // Log combat action
-            LogCombat(new CombatLog
-            {
-                Action = CombatAction.CounterAttack,
-                ActorName = counterAttacker.Name,
-                TargetName = target.Name,
-                DiceRoll = attackRoll,
-                StaminaCost = 0,
-                AdditionalInfo = "Badminton Streak activated!",
-                Timestamp = DateTime.Now
-            });
-            
-            return result;
-        }
-        
+			
+			// Log combat action
+			LogCombat(new CombatLog
+			{
+				Action = CombatAction.CounterAttack,
+				ActorName = counterAttacker.Name,
+				TargetName = target.Name,
+				DiceRoll = attackRoll,
+				StaminaCost = 0,
+				AdditionalInfo = "Badminton Streak activated!",
+				Timestamp = DateTime.Now
+			});
+			
+			return result;
+		}     
         // Validation methods
         private bool CanAttack(Character character) => character.CanAct && character.CurrentStamina >= 3;
         private bool CanDefend(Character character) => character.CanAct && character.CurrentStamina >= 2;

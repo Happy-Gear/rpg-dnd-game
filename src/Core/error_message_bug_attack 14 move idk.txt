@@ -1,0 +1,1157 @@
+Building and Running RPG Game...
+
+Restore complete (0.7s)
+  rpg-dnd-game succeeded (0.5s) → bin\Debug\net9.0\rpg-dnd-game.dll
+
+Build succeeded in 2.4s
+
+Γ£ô Build successful! Starting game...
+
+🎮 RPG D&D Combat Game - ASCII Edition
+=====================================
+
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   B   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (5,5) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Game started! Bob's turn
+Available actions:
+  'attack [letter]' - Attack adjacent character (e.g., 'attack B')
+  'move' - Enter WASD movement mode (allows second action)
+  'dash' - Enter WASD dash mode (ends turn)
+  'rest' - Recover stamina
+  'defend' - Take defensive stance
+
+Movement: Use WASD keys for intuitive step-by-step movement!
+Type 'help' for more information.
+╚══════════════════════════════════════════════════════╝
+
+
+> move
+Bob Move: [5] = 5 + 0 MOV = 5 movement points (allows second action)
+
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   B   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+
+=== MOVEMENT MODE ===
+🎮 Bob - Movement Points: 0/5
+📍 Starting Position: (5,5)
+📍 Current Preview: (5,5) (no movement yet)
+
+🎮 Controls:
+  [W] ↑ Up      [S] ↓ Down
+  [A] ← Left    [D] → Right
+  [Enter] Confirm path
+  [R] Reset path    [ESC] Cancel
+
+>>> Use WASD to move step by step!
+╚══════════════════════════════════════════════════════╝
+
+
+🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)
+Press key: [LeftArrow]
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   B   ○   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+
+=== MOVEMENT MODE ===
+🎮 Bob - Movement Points: 1/5
+📍 Starting Position: (5,5)
+📍 Current Preview: (4,5)
+🛤️  Path: (5,5) → (4,5)
+
+🎮 Controls:
+  [W] ↑ Up      [S] ↓ Down
+  [A] ← Left    [D] → Right
+  [Enter] Confirm path
+  [R] Reset path    [ESC] Cancel
+
+>>> Moved to (4,5)
+╚══════════════════════════════════════════════════════╝
+
+
+🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)
+Press key: [DownArrow]
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   ·   ○   .   .
+
+.   .   .   .   B   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+
+=== MOVEMENT MODE ===
+🎮 Bob - Movement Points: 2/5
+📍 Starting Position: (5,5)
+📍 Current Preview: (4,4)
+🛤️  Path: (5,5) → (4,5) → (4,4)
+
+🎮 Controls:
+  [W] ↑ Up      [S] ↓ Down
+  [A] ← Left    [D] → Right
+  [Enter] Confirm path
+  [R] Reset path    [ESC] Cancel
+
+>>> Moved to (4,4)
+╚══════════════════════════════════════════════════════╝
+
+
+🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)
+Press key: [LeftArrow]
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   ·   ○   .   .
+
+.   .   .   B   ·   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+
+=== MOVEMENT MODE ===
+🎮 Bob - Movement Points: 3/5
+📍 Starting Position: (5,5)
+📍 Current Preview: (3,4)
+🛤️  Path: (5,5) → (4,5) → (4,4) → (3,4)
+
+🎮 Controls:
+  [W] ↑ Up      [S] ↓ Down
+  [A] ← Left    [D] → Right
+  [Enter] Confirm path
+  [R] Reset path    [ESC] Cancel
+
+>>> Moved to (3,4)
+╚══════════════════════════════════════════════════════╝
+
+
+🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)
+Press key: [DownArrow]
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   ·   ○   .   .
+
+.   .   .   ·   ·   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+
+=== MOVEMENT MODE ===
+🎮 Bob - Movement Points: 4/5
+📍 Starting Position: (5,5)
+📍 Current Preview: (3,3)
+🛤️  Path: (5,5) → (4,5) → (4,4) → (3,4) → (3,3)
+
+🎮 Controls:
+  [W] ↑ Up      [S] ↓ Down
+  [A] ← Left    [D] → Right
+  [Enter] Confirm path
+  [R] Reset path    [ESC] Cancel
+
+>>> Moved to (3,3)
+╚══════════════════════════════════════════════════════╝
+
+
+🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)
+Press key: [Enter]
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 9/10 (Counter: 0/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob moved to (3,3) using 0 movement points.
+Used 1 stamina, can still act once more!
+
+Bob's turn continues...
+Actions used: 1/2
+Available actions:
+  'attack [letter]' - Attack adjacent character
+  'move' - Move again (1d6) using WASD
+  'dash' - Dash move (2d6) using WASD, ends turn
+  'rest' - Recover stamina
+  'defend' - Take defensive stance
+╚══════════════════════════════════════════════════════╝
+
+
+> attack A
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 10/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 6/10 (Counter: 0/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob attacks Alice: [4+3] = 7 + 2 ATK = 9 damage!
+
+Alice, choose your response:
+  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense
+  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack
+  'take' - Save stamina, take full damage
+
+Target has 10 stamina available.
+╚══════════════════════════════════════════════════════╝
+
+
+> defend
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 8/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 6/10 (Counter: 0/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob attacks Alice: [4+3] = 7 + 2 ATK = 9 damage!
+Alice defends: [5+4] = 9 + 0 DEF = 9 defense - blocks completely!
+
+
+╚══════════════════════════════════════════════════════╝
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 8/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 6/10 (Counter: 0/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Alice's turn
+Available actions:
+  'attack [letter]' - Attack adjacent character (e.g., 'attack B')
+  'move' - Enter WASD movement mode (allows second action)
+  'dash' - Enter WASD dash mode (ends turn)
+  'rest' - Recover stamina
+  'defend' - Take defensive stance
+
+Movement: Use WASD keys for intuitive step-by-step movement!
+Type 'help' for more information.
+╚══════════════════════════════════════════════════════╝
+
+
+> attack b
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 5/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 6/10 (Counter: 0/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Alice attacks Bob: [5+2] = 7 + 1 ATK = 8 damage!
+
+Bob, choose your response:
+  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense
+  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack
+  'take' - Save stamina, take full damage
+
+Target has 6 stamina available.
+╚══════════════════════════════════════════════════════╝
+
+
+> defend
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 5/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 4/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Alice attacks Bob: [5+2] = 7 + 1 ATK = 8 damage!
+Bob defends: [6+5] = 11 + 0 DEF = 11 defense - blocks completely! Counter +3!
+
+
+╚══════════════════════════════════════════════════════╝
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 5/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 4/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob's turn
+Available actions:
+  'attack [letter]' - Attack adjacent character (e.g., 'attack B')
+  'move' - Enter WASD movement mode (allows second action)
+  'dash' - Enter WASD dash mode (ends turn)
+  'rest' - Recover stamina
+  'defend' - Take defensive stance
+
+Movement: Use WASD keys for intuitive step-by-step movement!
+Type 'help' for more information.
+╚══════════════════════════════════════════════════════╝
+
+
+> attack A
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 5/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 1/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob attacks Alice: [5+3] = 8 + 2 ATK = 10 damage!
+
+Alice, choose your response:
+  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense
+  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack
+  'take' - Save stamina, take full damage
+
+Target has 5 stamina available.
+╚══════════════════════════════════════════════════════╝
+
+
+> defend
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 3/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 1/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Bob attacks Alice: [5+3] = 8 + 2 ATK = 10 damage!
+Alice defends: [4+6] = 10 + 0 DEF = 10 defense - blocks completely!
+
+
+╚══════════════════════════════════════════════════════╝
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 3/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 1/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Alice's turn
+Available actions:
+  'attack [letter]' - Attack adjacent character (e.g., 'attack B')
+  'move' - Enter WASD movement mode (allows second action)
+  'dash' - Enter WASD dash mode (ends turn)
+  'rest' - Recover stamina
+  'defend' - Take defensive stance
+
+Movement: Use WASD keys for intuitive step-by-step movement!
+Type 'help' for more information.
+╚══════════════════════════════════════════════════════╝
+
+
+> attack B
+╔═══════════════════ RPG COMBAT GRID ═══════════════════╗
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   B   .   .   .   .
+
+.   .   A   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+.   .   .   .   .   .   .   .
+
+=== COMBAT STATUS ===
+[A] Alice: HP 10/10, SP 0/10 (Counter: 0/6)
+    Position: (2,2) ATK:1 DEF:0 MOV:1
+[B] Bob: HP 10/10, SP 1/10 (Counter: 3/6)
+    Position: (3,3) ATK:2 DEF:0 MOV:0
+
+=== GAME INFO ===
+Alice attacks Bob: [5+6] = 11 + 1 ATK = 12 damage!
+
+Bob, choose your response:
+  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense
+  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack
+  'take' - Save stamina, take full damage
+
+Target has 1 stamina available.
+╚══════════════════════════════════════════════════════╝
+
+
+> move
+Stack overflow.
+   at System.Collections.Generic.SegmentedArrayBuilder`1[[System.__Canon, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].ToList()
+   at System.Linq.Enumerable+ArrayWhereIterator`1[[System.__Canon, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].ToList(System.ReadOnlySpan`1<System.__Canon>, System.Func`2<System.__Canon,Boolean>)
+   at System.Linq.Enumerable+ListWhereIterator`1[[System.__Canon, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]].ToList()
+   at RPGGame.Core.TurnManager.StartNewRound()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+  
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.TurnManager.NextTurn()
+   at RPGGame.Core.GameManager.AdvanceToNextTurn()
+   at RPGGame.Core.GameManager.ProcessDefenseChoice(RPGGame.Input.GameActionCommand)
+   at RPGGame.Core.GameManager.ProcessGameAction(RPGGame.Input.GameActionCommand)
+   at RPGGame.Core.GameManager.ProcessAction(System.String)
+   at RPGGame.Program.HandleNormalMode(RPGGame.Core.GameManager)
+   at RPGGame.Program.Main(System.String[])

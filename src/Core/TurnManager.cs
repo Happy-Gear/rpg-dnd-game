@@ -52,44 +52,81 @@ namespace RPGGame.Core
         /// <summary>
         /// Advance to next player's turn
         /// </summary>
-        public TurnResult NextTurn()
-        {
-            if (!GameActive)
-                return new TurnResult { Success = false, Message = "Combat not active" };
-            
-            // Check for counter-attacks (badminton streak interruptions)
-            var counterAttacker = CheckForCounterAttacks();
-            if (counterAttacker != null)
-            {
-                return HandleCounterAttackTurn(counterAttacker);
-            }
-            
-            // Normal turn progression
-            if (_turnQueue.Count == 0)
-            {
-                StartNewRound();
-            }
-            
-            _currentActor = _turnQueue.Dequeue();
-            
-            // Skip dead/incapacitated characters
-            if (!_currentActor.CanAct)
-            {
-                LogTurn($"{_currentActor.Name} cannot act, skipping turn");
-                return NextTurn(); // Recursive call to get next valid actor
-            }
-            
-            LogTurn($"{_currentActor.Name}'s turn begins");
-            
-            return new TurnResult
-            {
-                Success = true,
-                CurrentActor = _currentActor,
-                TurnType = TurnType.Normal,
-                AvailableActions = GetAvailableActions(_currentActor),
-                Message = $"{_currentActor.Name}'s turn"
-            };
-        }
+       public TurnResult NextTurn()
+		{
+			if (!GameActive)
+				return new TurnResult { Success = false, Message = "Combat not active" };
+
+			// Check for counter-attacks (badminton streak interruptions)
+			var counterAttacker = CheckForCounterAttacks();
+			if (counterAttacker != null)
+			{
+				return HandleCounterAttackTurn(counterAttacker);
+			}
+
+			// Normal turn progression
+			if (_turnQueue.Count == 0)
+			{
+				StartNewRound();
+			}
+
+			// SAFETY: Prevent infinite recursion
+			int attempts = 0;
+			const int MAX_ATTEMPTS = 10;
+
+			while (attempts < MAX_ATTEMPTS)
+			{
+				if (_turnQueue.Count == 0)
+				{
+					StartNewRound();
+				}
+
+				_currentActor = _turnQueue.Dequeue();
+
+				// If character can act normally, return
+				if (_currentActor.CanAct)
+				{
+					LogTurn($"{_currentActor.Name}'s turn begins");
+					return new TurnResult
+					{
+						Success = true,
+						CurrentActor = _currentActor,
+						TurnType = TurnType.Normal,
+						AvailableActions = GetAvailableActions(_currentActor),
+						Message = $"{_currentActor.Name}'s turn"
+					};
+				}
+
+				// Character can't act - force rest if alive but no stamina
+				if (_currentActor.IsAlive && _currentActor.CurrentStamina == 0)
+				{
+					LogTurn($"{_currentActor.Name} has no stamina - forced to rest");
+					_currentActor.RestoreStamina(5); // Force rest
+					
+					return new TurnResult
+					{
+						Success = true,
+						CurrentActor = _currentActor,
+						TurnType = TurnType.Normal,
+						AvailableActions = GetAvailableActions(_currentActor),
+						Message = $"{_currentActor.Name} was forced to rest (no stamina) and recovered 5 stamina"
+					};
+				}
+
+				// Character is dead - skip
+				LogTurn($"{_currentActor.Name} cannot act, skipping turn");
+				attempts++;
+			}
+
+			// Safety fallback - end game if all characters stuck
+			LogTurn("All characters unable to act - ending combat");
+			GameActive = false;
+			return new TurnResult 
+			{ 
+				Success = false, 
+				Message = "Combat ended - no valid actors remaining" 
+			};
+		}
         
         /// <summary>
         /// Execute a player action during their turn
@@ -143,21 +180,25 @@ namespace RPGGame.Core
         /// <summary>
         /// Handle counter-attack turns (badminton streak)
         /// </summary>
-        private TurnResult HandleCounterAttackTurn(Character counterAttacker)
-        {
-            LogTurn($"⚡ {counterAttacker.Name} gets a COUNTER ATTACK turn! [BADMINTON STREAK]");
-            
-            return new TurnResult
-            {
-                Success = true,
-                CurrentActor = counterAttacker,
-                TurnType = TurnType.CounterAttack,
-                AvailableActions = new List<ActionChoice> { ActionChoice.Attack }, // Only attack on counter turns
-                Message = $"⚡ {counterAttacker.Name} COUNTER ATTACK! Choose your target!"
-            };
-        }
-        
-        /// <summary>
+		private TurnResult HandleCounterAttackTurn(Character counterAttacker)
+		{
+			_currentActor = counterAttacker;
+			LogTurn($"⚡ {counterAttacker.Name} gets a COUNTER ATTACK turn! [BADMINTON STREAK]");
+			
+			// CRITICAL FIX: Consume counter immediately when granting counter turn
+			// This prevents infinite loop of counter attack turns
+			counterAttacker.Counter.ConsumeCounter();
+			
+			return new TurnResult
+			{
+				Success = true,
+				CurrentActor = counterAttacker,
+				TurnType = TurnType.CounterAttack,
+				AvailableActions = new List<ActionChoice> { ActionChoice.Attack }, // Only attack on counter turns
+				Message = $"⚡ {counterAttacker.Name} COUNTER ATTACK! Counter consumed - use it now!"
+			};
+		}
+		// <summary>
         /// Check if any character has a ready counter
         /// </summary>
         private Character CheckForCounterAttacks()
@@ -305,5 +346,10 @@ namespace RPGGame.Core
         {
             return _participants.Where(p => p.IsAlive).ToList();
         }
+		
+		public TurnType GetCurrentTurnType()
+		{
+			return TurnType.Normal; // Placeholder - implement based on your turn tracking
+		}
     }
 }

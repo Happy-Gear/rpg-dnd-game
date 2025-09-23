@@ -12,7 +12,7 @@ namespace RPGGame
             Console.WriteLine("=====================================\n");
             
             // Create test characters
-            var alice = CreateCharacter("Alice", 1, 0, 5, 5, 1, 5); // ATK:1, DEF:0, MOV:1
+            var alice = CreateCharacter("Alice", 1, 6, 5, 5, 1, 5); // ATK:1, DEF:0, MOV:1
             var bob = CreateCharacter("Bob", 2, 0, 5, 5, 0, 5);     // ATK:2, DEF:0, MOV:0
                         
             // Initialize game

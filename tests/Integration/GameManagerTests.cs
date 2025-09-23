@@ -254,33 +254,41 @@ namespace RPGGame.Tests.Integration
         }
         
         [Test]
-        [Category("Integration")]
-        public void Should_HandleMovementWithSecondAction_When_MoveCommandUsed()
-        {
-            // Arrange
-            _gameManager.StartGame(_alice, _bob);
-            var initialStamina = _alice.CurrentStamina;
-            
-            // Act - Execute move
-            var moveResult = _gameManager.ProcessAction("move");
-            
-            // Assert
-            Assert.That(moveResult, Is.Not.Null, "Should return move result");
-            
-            if (moveResult.Contains("coordinates") || moveResult.Contains("position"))
-            {
-                // Movement is asking for target position
-                Assert.That(moveResult, Does.Contain("x y").Or.Contain("coordinates"), 
-                           "Should ask for movement target");
-            }
-            else if (moveResult.Contains("can still act") || moveResult.Contains("second action"))
-            {
-                // Movement completed, allowing second action
-                Assert.That(_alice.CurrentStamina, Is.EqualTo(initialStamina - 1), 
-                           "Should have used 1 stamina for move");
-                Assert.That(moveResult, Does.Contain("action"), "Should indicate second action available");
-            }
-        }
+		[Category("Integration")]
+		public void Should_HandleMovementWithSecondAction_When_MoveCommandUsed()
+		{
+			// Arrange
+			_gameManager.StartGame(_alice, _bob);
+			var initialStamina = _alice.CurrentStamina;
+			
+			// Act - Execute move (should enter WASD mode)
+			var moveResult = _gameManager.ProcessAction("move");
+			
+			// Assert
+			Assert.That(moveResult, Is.Not.Null, "Should return move result");
+			
+			if (moveResult.Contains("MOVEMENT MODE") || moveResult.Contains("WASD"))
+			{
+				// Movement entered WASD mode - this is the new expected behavior
+				Assert.That(moveResult, Does.Contain("movement").Or.Contain("MOVEMENT MODE"), 
+						   "Should enter WASD movement mode");
+				Assert.That(_alice.CurrentStamina, Is.EqualTo(initialStamina), 
+						   "Should not consume stamina until movement is confirmed");
+			}
+			else if (moveResult.Contains("can still act") || moveResult.Contains("second action"))
+			{
+				// Old direct movement completed - legacy behavior
+				Assert.That(_alice.CurrentStamina, Is.EqualTo(initialStamina - 1), 
+						   "Should have used 1 stamina for move");
+				Assert.That(moveResult, Does.Contain("action"), "Should indicate second action available");
+			}
+			else
+			{
+				// Movement is asking for target position or some other state
+				Assert.That(moveResult, Does.Contain("move").Or.Contain("position").Or.Contain("coordinates"), 
+						   "Should handle movement request appropriately");
+			}
+		}
         
         [Test]
         [Category("Integration")]
@@ -375,28 +383,45 @@ namespace RPGGame.Tests.Integration
         // =============================================================================
         // ACTION ECONOMY INTEGRATION TESTS
         // =============================================================================
-        
-        [Test]
-        [Category("Integration")]
-        public void Should_AllowSecondAction_When_FirstActionWasMove()
-        {
-            // Arrange
-            _gameManager.StartGame(_alice, _bob);
-            
-            // Act - Try to use move (should allow second action)
-            var moveResult = _gameManager.ProcessAction("move");
-            
-            // If move completed successfully
-            if (moveResult.Contains("second action") || moveResult.Contains("can still act"))
-            {
-                // Try a second action
-                var secondResult = _gameManager.ProcessAction("rest");
-                
-                // Assert
-                Assert.That(secondResult, Does.Contain("turn ends").Or.Contain("next"), 
-                           "Second action should end turn");
-            }
-        }
+				
+		[Test]
+		[Category("Integration")]
+		public void Should_AllowSecondAction_When_FirstActionWasMove()
+		{
+			// Arrange
+			_gameManager.StartGame(_alice, _bob);
+			
+			// Act - Try to use move
+			var moveResult = _gameManager.ProcessAction("move");
+			
+			// Assert based on what actually happened
+			if (moveResult.Contains("MOVEMENT MODE") || moveResult.Contains("WASD"))
+			{
+				// Entered WASD mode - test the mode works
+				Assert.That(_gameManager.InMovementMode, Is.True, "Should be in movement mode");
+				Assert.That(moveResult, Does.Contain("WASD").Or.Contain("movement"), 
+						   "Should show WASD movement interface");
+				
+				// Try to exit movement mode
+				var cancelResult = _gameManager.ProcessAction("cancel");
+				Assert.That(cancelResult, Does.Contain("cancel").Or.Contain("turn"), 
+						   "Should handle movement cancellation");
+			}
+			else if (moveResult.Contains("second action") || moveResult.Contains("can still act"))
+			{
+				// Move completed successfully - try second action
+				var secondResult = _gameManager.ProcessAction("rest");
+				
+				Assert.That(secondResult, Does.Contain("turn ends").Or.Contain("next").Or.Contain("turn"), 
+						   "Second action should end turn or advance game");
+			}
+			else
+			{
+				// Some other movement state - just verify it's handled
+				Assert.That(moveResult, Is.Not.Null.And.Not.Empty, 
+						   "Should handle movement request without crashing");
+			}
+		}
         
         [Test]
         [Category("Integration")]

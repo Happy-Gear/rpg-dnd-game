@@ -1047,57 +1047,84 @@ namespace RPGGame.Core
         /// <summary>
         /// Handle attack action with range checking
         /// </summary>
-        private string HandleAttackAction(Character target)
-        {
-            var attacker = CurrentActor;
-            
-            if (target == null)
-            {
-                var validTargets = _gridDisplay.GetCharactersInAttackRange(attacker);
-                if (!validTargets.Any())
-                {
-                    return _gridDisplay.CreateFullDisplay(
-                        "No valid targets in range!\n" +
-                        "Move closer to attack. Use 'move' (WASD mode) or 'dash' to reposition."
-                    );
-                }
-                
-                return _gridDisplay.CreateFullDisplay(
-                    "Choose a target to attack:\n" +
-                    _gridDisplay.DrawAttackRange(attacker) +
-                    "Use 'attack [character letter]' (e.g., 'attack B')"
-                );
-            }
-            
-            if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
-            {
-                return _gridDisplay.CreateFullDisplay(
-                    $"{target.Name} is not in attack range! You must be adjacent (including diagonal).\n" +
-                    _gridDisplay.DrawAttackRange(attacker)
-                );
-            }
-            
-            var attackResult = _combatSystem.ExecuteAttack(attacker, target);
-            
-            if (!attackResult.Success)
-            {
-                return _gridDisplay.CreateFullDisplay(attackResult.Message);
-            }
-            
-            _pendingAttack = attackResult;
-            _defendingCharacter = target;
-            _waitingForDefenseChoice = true;
-            
-            return _gridDisplay.CreateFullDisplay(
-                $"{attackResult.Message}\n\n" +
-                $"{target.Name}, choose your response:\n" +
-                "  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
-                "  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
-                "  'take' - Save stamina, take full damage\n" +
-                $"\nTarget has {target.CurrentStamina} stamina available."
-            );
-        }
-        
+		private string HandleAttackAction(Character target)
+		{
+			var attacker = CurrentActor; // CRITICAL: Always use CurrentActor as attacker
+			
+			// Validate attacker exists and can act
+			if (attacker == null)
+			{
+				return _gridDisplay.CreateFullDisplay("No current actor found!");
+			}
+			
+			if (target == null)
+			{
+				var validTargets = _gridDisplay.GetCharactersInAttackRange(attacker);
+				if (!validTargets.Any())
+				{
+					return _gridDisplay.CreateFullDisplay(
+						"No valid targets in range!\n" +
+						"Move closer to attack. Use 'move' (WASD mode) or 'dash' to reposition."
+					);
+				}
+				
+				return _gridDisplay.CreateFullDisplay(
+					"Choose a target to attack:\n" +
+					_gridDisplay.DrawAttackRange(attacker) + // Show ATTACKER's range
+					"Use 'attack [character letter]' (e.g., 'attack B')"
+				);
+			}
+			
+			// CRITICAL FIX: Use attacker.Position (CurrentActor) not target.Position
+			if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
+			{
+				return _gridDisplay.CreateFullDisplay(
+					$"{target.Name} is not in attack range! You must be adjacent (including diagonal).\n" +
+					_gridDisplay.DrawAttackRange(attacker) + // Show ATTACKER's options
+					$"\nDebug: {attacker.Name} at ({attacker.Position.X},{attacker.Position.Y}) " +
+					$"trying to attack {target.Name} at ({target.Position.X},{target.Position.Y})"
+				);
+			}
+			
+			var attackResult = _combatSystem.ExecuteAttack(attacker, target);
+			
+			if (!attackResult.Success)
+			{
+				return _gridDisplay.CreateFullDisplay(attackResult.Message);
+			}
+			
+			// For counter attacks, execute immediately (no defense choice)
+			if (_turnManager.CurrentActor != null && 
+				_turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
+			{
+				// Counter attacks bypass defense - apply damage directly
+				var counterResult = _combatSystem.ExecuteCounterAttack(attacker, target);
+				
+				if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
+				{
+					var winner = _players.FirstOrDefault(p => p.IsAlive);
+					return _gridDisplay.CreateFullDisplay(
+						counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!"
+					);
+				}
+				
+				return _gridDisplay.CreateFullDisplay(counterResult.Message + "\n") + AdvanceToNextTurn();
+			}
+			
+			// Regular attack - wait for defense choice
+			_pendingAttack = attackResult;
+			_defendingCharacter = target;
+			_waitingForDefenseChoice = true;
+			
+			return _gridDisplay.CreateFullDisplay(
+				$"{attackResult.Message}\n\n" +
+				$"{target.Name}, choose your response:\n" +
+				"  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
+				"  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
+				"  'take' - Save stamina, take full damage\n" +
+				$"\nTarget has {target.CurrentStamina} stamina available."
+			);
+		}
         /// <summary>
         /// Get movement options display (legacy)
         /// </summary>

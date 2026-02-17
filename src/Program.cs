@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using RPGGame.Characters;
 using RPGGame.Core;
 
@@ -10,6 +11,18 @@ namespace RPGGame
         {
             Console.WriteLine("🎮 RPG D&D Combat Game - ASCII Edition");
             Console.WriteLine("=====================================\n");
+            
+            // Load game configuration
+            var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "balance.json");
+            if (File.Exists(configPath))
+            {
+                GameConfig.LoadFromFile(configPath);
+                Console.WriteLine("✓ Loaded balance.json");
+            }
+            else
+            {
+                Console.WriteLine("⚠ balance.json not found — using defaults");
+            }
             
             // Create test characters
             var alice = CreateCharacter("Alice", 1, 6, 5, 5, 1, 5); // ATK:1, DEF:0, MOV:1
@@ -88,6 +101,16 @@ namespace RPGGame
             {
                 Console.WriteLine("Exiting game...");
                 Environment.Exit(0);
+            }
+            
+            // Hot-reload config during gameplay
+            if (input.ToLower() == "reload")
+            {
+                if (GameConfig.Reload())
+                    Console.WriteLine("✓ Config reloaded!");
+                else
+                    Console.WriteLine("✗ Reload failed — check balance.json");
+                return;
             }
             
             // Process text command

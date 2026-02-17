@@ -8,4 +8,9 @@
   <ItemGroup>
     <Compile Include="src/**/*.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="balance.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

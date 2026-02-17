@@ -30,6 +30,8 @@ namespace RPGGame.Combat
             if (defender == null)
                 throw new ArgumentNullException(nameof(defender));
             
+            var atkCost = Core.GameConfig.Current.Combat.StaminaCosts.Attack;
+            
             // Validate attack can happen
             if (!CanAttack(attacker))
             {
@@ -41,7 +43,7 @@ namespace RPGGame.Combat
             }
             
             // Consume stamina for attack
-            attacker.UseStamina(3);
+            attacker.UseStamina(atkCost);
             
             // Roll attack dice (2d6 + ATK modifier)
             var attackRoll = DiceRoller.Roll2d6("ATK");
@@ -63,7 +65,7 @@ namespace RPGGame.Combat
                 ActorName = attacker.Name,
                 TargetName = defender.Name,
                 DiceRoll = attackRoll,
-                StaminaCost = 3,
+                StaminaCost = atkCost,
                 Timestamp = DateTime.Now
             });
             
@@ -105,6 +107,8 @@ namespace RPGGame.Combat
 		/// </summary>
 		private DefenseResult HandleDefenseAction(Character defender, AttackResult incomingAttack)
 		{
+			var defCost = Core.GameConfig.Current.Combat.StaminaCosts.Defend;
+			
 			// Check if defender has enough stamina
 			if (!CanDefend(defender))
 			{
@@ -112,7 +116,7 @@ namespace RPGGame.Combat
 			}
 			
 			// Consume stamina for defense
-			defender.UseStamina(2);
+			defender.UseStamina(defCost);
 			
 			// Roll defense dice (2d6 + DEF modifier)
 			var defenseRoll = DiceRoller.Roll2d6("DEF");
@@ -156,7 +160,7 @@ namespace RPGGame.Combat
 				Action = CombatAction.Defend,
 				ActorName = defender.Name,
 				DiceRoll = defenseRoll,
-				StaminaCost = 2,
+				StaminaCost = defCost,
 				AdditionalInfo = $"Blocked {damageBlocked}, Counter +{overDefense}",
 				Timestamp = DateTime.Now
 			});
@@ -169,8 +173,10 @@ namespace RPGGame.Combat
 		/// </summary>
 		private DefenseResult HandleMoveAction(Character defender, AttackResult incomingAttack)
 		{
-			// MOV costs 1 stamina
-			if (!defender.UseStamina(1))
+			var movCost = Core.GameConfig.Current.Combat.StaminaCosts.Move;
+			
+			// MOV costs stamina
+			if (!defender.UseStamina(movCost))
 			{
 				return HandleTakeDamage(defender, incomingAttack, "Insufficient stamina to move!");
 			}
@@ -221,7 +227,7 @@ namespace RPGGame.Combat
 				Action = CombatAction.Move,
 				ActorName = defender.Name,
 				DiceRoll = evasionRoll,
-				StaminaCost = 1,
+				StaminaCost = movCost,
 				AdditionalInfo = $"Evasion: {totalEvasion} vs Attack: {attackValue}, Difference: {evasionDifference}",
 				Timestamp = DateTime.Now
 			});
@@ -318,8 +324,8 @@ namespace RPGGame.Combat
 			return result;
 		}     
         // Validation methods
-        private bool CanAttack(Character character) => character.CanAct && character.CurrentStamina >= 3;
-        private bool CanDefend(Character character) => character.CanAct && character.CurrentStamina >= 2;
+        private bool CanAttack(Character character) => character.CanAct && character.CurrentStamina >= Core.GameConfig.Current.Combat.StaminaCosts.Attack;
+        private bool CanDefend(Character character) => character.CanAct && character.CurrentStamina >= Core.GameConfig.Current.Combat.StaminaCosts.Defend;
         
         // Utility methods
         private void LogCombat(CombatLog log)

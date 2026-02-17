@@ -1,0 +1,54 @@
+{
+  "combat": {
+    "staminaCosts": {
+      "attack": 3,
+      "defend": 2,
+      "move": 1
+    },
+    "restStaminaRestore": 5,
+    "attackRange": 1,
+    "counterGauge": {
+      "maximum": 6
+    }
+  },
+  "characters": {
+    "defaults": {
+      "health": 100,
+      "stamina": 20,
+      "statValue": 10
+    }
+  },
+  "grid": {
+    "width": 8,
+    "height": 8,
+    "startingPositions": [
+      { "x": 2, "y": 2 },
+      { "x": 5, "y": 5 },
+      { "x": 2, "y": 5 },
+      { "x": 5, "y": 2 }
+    ]
+  },
+  "turns": {
+    "maxActionsBase": 1,
+    "maxActionsAfterMove": 2,
+    "forcedRestRestore": 5,
+    "maxSkipAttempts": 10
+  },
+  "movement": {
+    "simpleMove": {
+      "diceCount": 1,
+      "diceSides": 6
+    },
+    "dashMove": {
+      "diceCount": 2,
+      "diceSides": 6
+    }
+  },
+  "_future": {
+    "equipment": {},
+    "statusEffects": {},
+    "abilities": {},
+    "aiProfiles": {},
+    "gameModes": {}
+  }
+}

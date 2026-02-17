@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using RPGGame.Core;
 
 namespace RPGGame.Combat
 {
@@ -10,12 +11,11 @@ namespace RPGGame.Combat
     {
 		[JsonInclude]
         private int _current = 0;
-        private const int MAX_COUNTER = 6;
         
         public int Current => _current;
-        public int Maximum => MAX_COUNTER;
-        public bool IsReady => _current >= MAX_COUNTER;
-        public float FillPercentage => (float)_current / MAX_COUNTER;
+        public int Maximum => GameConfig.Current.Combat.CounterGauge.Maximum;
+        public bool IsReady => _current >= Maximum;
+        public float FillPercentage => (float)_current / Maximum;
         
         /// <summary>
         /// Add counter points from successful over-defense
@@ -26,7 +26,7 @@ namespace RPGGame.Combat
             // Only add positive amounts (prevent counter reduction via negative values)
             if (amount > 0)
             {
-                _current = Math.Min(MAX_COUNTER, _current + amount);
+                _current = Math.Min(Maximum, _current + amount);
             }
         }
         
@@ -53,7 +53,7 @@ namespace RPGGame.Combat
         
         public override string ToString()
         {
-            return $"Counter: {_current}/{MAX_COUNTER}" + (IsReady ? " [READY!]" : "");
+            return $"Counter: {_current}/{Maximum}" + (IsReady ? " [READY!]" : "");
         }
     }
 }

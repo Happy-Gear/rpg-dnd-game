@@ -1,30 +1,33 @@
+using RPGGame.Core;
+
 namespace RPGGame.Core
 {
     /// <summary>
-    /// Game balance constants - centralized for easy tweaking
+    /// Game balance constants - now delegates to GameConfig for centralized configuration.
+    /// Kept as a compatibility shim until all references are migrated directly to GameConfig.
     /// </summary>
     public static class GameConstants
     {
         // Grid Settings
-        public const int GRID_WIDTH = 8;
-        public const int GRID_HEIGHT = 8;
+        public static int GRID_WIDTH => GameConfig.Current.Grid.Width;
+        public static int GRID_HEIGHT => GameConfig.Current.Grid.Height;
         
         // Combat Constants
-        public const int ATTACK_STAMINA_COST = 3;
-        public const int DEFEND_STAMINA_COST = 2;
-        public const int MOVE_STAMINA_COST = 1;
-        public const int REST_STAMINA_RESTORE = 5;
+        public static int ATTACK_STAMINA_COST => GameConfig.Current.Combat.StaminaCosts.Attack;
+        public static int DEFEND_STAMINA_COST => GameConfig.Current.Combat.StaminaCosts.Defend;
+        public static int MOVE_STAMINA_COST => GameConfig.Current.Combat.StaminaCosts.Move;
+        public static int REST_STAMINA_RESTORE => GameConfig.Current.Combat.RestStaminaRestore;
         
         // Counter System
-        public const int MAX_COUNTER_GAUGE = 6;
+        public static int MAX_COUNTER_GAUGE => GameConfig.Current.Combat.CounterGauge.Maximum;
         
         // Default Character Stats
-        public const int DEFAULT_HEALTH = 100;
-        public const int DEFAULT_STAMINA = 20;
-        public const int DEFAULT_STAT_VALUE = 10;
+        public static int DEFAULT_HEALTH => GameConfig.Current.Characters.Defaults.Health;
+        public static int DEFAULT_STAMINA => GameConfig.Current.Characters.Defaults.Stamina;
+        public static int DEFAULT_STAT_VALUE => GameConfig.Current.Characters.Defaults.StatValue;
         
         // Movement
-        public const int ATTACK_RANGE = 1; // Adjacent positions
-        public const int MAX_ACTIONS_PER_TURN = 2;
+        public static int ATTACK_RANGE => GameConfig.Current.Combat.AttackRange;
+        public static int MAX_ACTIONS_PER_TURN => GameConfig.Current.Turns.MaxActionsAfterMove;
     }
 }

@@ -17,8 +17,6 @@ namespace RPGGame.Core
         private static readonly object _lock = new object();
         private static string _configPath;
 
-        // === Deserialized sections ===
-
         [JsonPropertyName("combat")]
         public CombatConfig Combat { get; set; } = new();
 
@@ -34,13 +32,6 @@ namespace RPGGame.Core
         [JsonPropertyName("movement")]
         public MovementConfig Movement { get; set; } = new();
 
-        // === Singleton access ===
-
-        /// <summary>
-        /// Current active configuration instance.
-        /// Call Load() or LoadFromFile() before first access.
-        /// Falls back to defaults if never loaded.
-        /// </summary>
         public static GameConfig Current
         {
             get
@@ -56,15 +47,6 @@ namespace RPGGame.Core
             }
         }
 
-        // === Loading ===
-
-        /// <summary>
-        /// Load configuration from a JSON file path.
-        /// </summary>
-        /// <param name="filePath">Path to balance.json</param>
-        /// <returns>The loaded GameConfig instance</returns>
-        /// <exception cref="FileNotFoundException">Thrown when config file does not exist</exception>
-        /// <exception cref="JsonException">Thrown when JSON is malformed</exception>
         public static GameConfig LoadFromFile(string filePath)
         {
             if (!File.Exists(filePath))
@@ -74,13 +56,6 @@ namespace RPGGame.Core
             return Load(json, filePath);
         }
 
-        /// <summary>
-        /// Load configuration from a JSON string.
-        /// </summary>
-        /// <param name="json">Raw JSON content</param>
-        /// <param name="sourcePath">Optional source path for hot-reload tracking</param>
-        /// <returns>The loaded GameConfig instance</returns>
-        /// <exception cref="JsonException">Thrown when JSON is malformed</exception>
         public static GameConfig Load(string json, string sourcePath = null)
         {
             var options = new JsonSerializerOptions
@@ -104,9 +79,6 @@ namespace RPGGame.Core
             return config;
         }
 
-        /// <summary>
-        /// Reset to default configuration (useful for tests).
-        /// </summary>
         public static void ResetToDefaults()
         {
             lock (_lock)
@@ -116,10 +88,6 @@ namespace RPGGame.Core
             }
         }
 
-        /// <summary>
-        /// Hot-reload configuration from the originally loaded file.
-        /// Returns true if reload succeeded, false if no source path or file missing.
-        /// </summary>
         public static bool Reload()
         {
             if (string.IsNullOrEmpty(_configPath) || !File.Exists(_configPath))
@@ -136,12 +104,6 @@ namespace RPGGame.Core
             }
         }
 
-        // === Validation ===
-
-        /// <summary>
-        /// Validate configuration values are within acceptable ranges.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown when config values are invalid</exception>
         public void Validate()
         {
             var errors = new List<string>();
@@ -160,19 +122,19 @@ namespace RPGGame.Core
             if (Characters.Defaults.StatValue < 0) errors.Add("characters.defaults.statValue must be >= 0");
 
             // Grid
-            if (Grid.Width < 2) errors.Add("grid.width must be >= 2");
-            if (Grid.Height < 2) errors.Add("grid.height must be >= 2");
+            if (Grid.Viewport.Width < 4) errors.Add("grid.viewport.width must be >= 4");
+            if (Grid.Viewport.Height < 4) errors.Add("grid.viewport.height must be >= 4");
+            if (Grid.Arena.Diameter < 4) errors.Add("grid.arena.diameter must be >= 4");
             if (Grid.StartingPositions == null || Grid.StartingPositions.Count == 0)
                 errors.Add("grid.startingPositions must have at least one entry");
 
-            // Validate starting positions are within grid bounds
             if (Grid.StartingPositions != null)
             {
                 for (int i = 0; i < Grid.StartingPositions.Count; i++)
                 {
                     var pos = Grid.StartingPositions[i];
-                    if (pos.X < 0 || pos.X >= Grid.Width || pos.Y < 0 || pos.Y >= Grid.Height)
-                        errors.Add($"grid.startingPositions[{i}] ({pos.X},{pos.Y}) is outside grid bounds ({Grid.Width}x{Grid.Height})");
+                    if (!Grid.IsValidArenaPosition(pos.X, pos.Y))
+                        errors.Add($"grid.startingPositions[{i}] ({pos.X},{pos.Y}) is outside the circular arena");
                 }
             }
 
@@ -195,9 +157,6 @@ namespace RPGGame.Core
 
     // === Config section classes ===
 
-    /// <summary>
-    /// Combat balance parameters
-    /// </summary>
     public class CombatConfig
     {
         [JsonPropertyName("staminaCosts")]
@@ -213,9 +172,6 @@ namespace RPGGame.Core
         public CounterGaugeConfig CounterGauge { get; set; } = new();
     }
 
-    /// <summary>
-    /// Stamina costs for each action type
-    /// </summary>
     public class StaminaCostsConfig
     {
         [JsonPropertyName("attack")]
@@ -228,27 +184,18 @@ namespace RPGGame.Core
         public int Move { get; set; } = 1;
     }
 
-    /// <summary>
-    /// Counter gauge (badminton streak) parameters
-    /// </summary>
     public class CounterGaugeConfig
     {
         [JsonPropertyName("maximum")]
         public int Maximum { get; set; } = 6;
     }
 
-    /// <summary>
-    /// Character default parameters
-    /// </summary>
     public class CharacterConfig
     {
         [JsonPropertyName("defaults")]
         public CharacterDefaultsConfig Defaults { get; set; } = new();
     }
 
-    /// <summary>
-    /// Default values for new characters
-    /// </summary>
     public class CharacterDefaultsConfig
     {
         [JsonPropertyName("health")]
@@ -261,29 +208,62 @@ namespace RPGGame.Core
         public int StatValue { get; set; } = 10;
     }
 
-    /// <summary>
-    /// Grid and spatial configuration
-    /// </summary>
     public class GridConfig
     {
         [JsonPropertyName("width")]
-        public int Width { get; set; } = 8;
+        public int Width { get; set; } = 64;
 
         [JsonPropertyName("height")]
-        public int Height { get; set; } = 8;
+        public int Height { get; set; } = 64;
+
+        [JsonPropertyName("viewport")]
+        public ViewportConfig Viewport { get; set; } = new();
+
+        [JsonPropertyName("arena")]
+        public ArenaConfig Arena { get; set; } = new();
 
         [JsonPropertyName("startingPositions")]
         public List<PositionConfig> StartingPositions { get; set; } = new()
         {
-            new() { X = 2, Y = 2 },
-            new() { X = 5, Y = 5 },
-            new() { X = 2, Y = 5 },
-            new() { X = 5, Y = 2 }
+            new() { X = 62, Y = 62 },
+            new() { X = 66, Y = 66 },
+            new() { X = 62, Y = 66 },
+            new() { X = 66, Y = 62 }
         };
 
-        /// <summary>
-        /// Convert config positions to game Position objects
-        /// </summary>
+        /// <summary>Check if a world position is inside the circular arena</summary>
+        public bool IsValidArenaPosition(int x, int y)
+        {
+            double radius = Arena.Diameter / 2.0;
+            double dx = x - Arena.CenterX;
+            double dy = y - Arena.CenterY;
+            return (dx * dx + dy * dy) <= (radius * radius);
+        }
+
+        /// <summary>Get viewport bounds centered on player (minX, maxX, minY, maxY)</summary>
+        public (int minX, int maxX, int minY, int maxY) GetViewportBounds(int playerX, int playerY)
+        {
+            int halfW = Viewport.Width / 2;
+            int halfH = Viewport.Height / 2;
+            return (playerX - halfW, playerX + halfW, playerY - halfH, playerY + halfH);
+        }
+
+        /// <summary>Convert world coords to viewport coords. Returns null if outside viewport.</summary>
+        public (int vx, int vy)? WorldToViewport(int playerX, int playerY, int worldX, int worldY)
+        {
+            var (minX, maxX, minY, maxY) = GetViewportBounds(playerX, playerY);
+            if (worldX < minX || worldX > maxX || worldY < minY || worldY > maxY)
+                return null;
+            return (worldX - minX, worldY - minY);
+        }
+
+        /// <summary>Convert viewport coords back to world coords</summary>
+        public (int wx, int wy) ViewportToWorld(int playerX, int playerY, int viewX, int viewY)
+        {
+            var (minX, _, minY, _) = GetViewportBounds(playerX, playerY);
+            return (minX + viewX, minY + viewY);
+        }
+
         public List<Position> GetStartingPositions()
         {
             var positions = new List<Position>();
@@ -293,9 +273,27 @@ namespace RPGGame.Core
         }
     }
 
-    /// <summary>
-    /// Lightweight position for JSON serialization (avoids coupling to grid Position)
-    /// </summary>
+    public class ViewportConfig
+    {
+        [JsonPropertyName("width")]
+        public int Width { get; set; } = 64;
+
+        [JsonPropertyName("height")]
+        public int Height { get; set; } = 64;
+    }
+
+    public class ArenaConfig
+    {
+        [JsonPropertyName("diameter")]
+        public int Diameter { get; set; } = 128;
+
+        [JsonPropertyName("centerX")]
+        public int CenterX { get; set; } = 64;
+
+        [JsonPropertyName("centerY")]
+        public int CenterY { get; set; } = 64;
+    }
+
     public class PositionConfig
     {
         [JsonPropertyName("x")]
@@ -305,9 +303,6 @@ namespace RPGGame.Core
         public int Y { get; set; }
     }
 
-    /// <summary>
-    /// Turn system parameters
-    /// </summary>
     public class TurnConfig
     {
         [JsonPropertyName("maxActionsBase")]
@@ -323,9 +318,6 @@ namespace RPGGame.Core
         public int MaxSkipAttempts { get; set; } = 10;
     }
 
-    /// <summary>
-    /// Movement dice configuration
-    /// </summary>
     public class MovementConfig
     {
         [JsonPropertyName("simpleMove")]
@@ -335,9 +327,6 @@ namespace RPGGame.Core
         public DiceConfig DashMove { get; set; } = new() { DiceCount = 2, DiceSides = 6 };
     }
 
-    /// <summary>
-    /// Dice formula configuration (e.g., 2d6 = DiceCount:2, DiceSides:6)
-    /// </summary>
     public class DiceConfig
     {
         [JsonPropertyName("diceCount")]

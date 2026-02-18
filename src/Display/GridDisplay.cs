@@ -23,68 +23,42 @@ namespace RPGGame.Display
             _characters = new List<Character>();
         }
         
-        /// <summary>
-        /// Update character positions for display
-        /// </summary>
         public void UpdateCharacters(List<Character> characters)
         {
             _characters = characters?.Where(c => c.IsAlive).ToList() ?? new List<Character>();
         }
         
-        /// <summary>
-        /// Generate ASCII grid with character positions
-        /// </summary>
         public string DrawGrid()
         {
             var sb = new StringBuilder();
             
-            // Draw grid with characters at junction points (+)
-            for (int y = _height - 1; y >= 0; y--) // Top to bottom for proper display
+            for (int y = _height - 1; y >= 0; y--)
             {
-			// Draw row with character positions
-			for (int x = 0; x < _width; x++)
-			{
-				char displayChar = GetCharacterAtPosition(x, y);
-				sb.Append(displayChar);
-				
-				// Add spaces between grid points (except last column)
-				if (x < _width - 1)
-				{
-					sb.Append("   "); // 3 spaces between positions
-				}
-			}
-			sb.AppendLine();
-
-			// Add vertical spacing (except last row)
-			if (y > 0)
-			{
-				sb.AppendLine(); // Empty line for vertical spacing
-			}
+                for (int x = 0; x < _width; x++)
+                {
+                    char displayChar = GetCharacterAtPosition(x, y);
+                    sb.Append(displayChar);
+                    
+                    if (x < _width - 1)
+                        sb.Append("   ");
+                }
+                sb.AppendLine();
+                
+                if (y > 0)
+                    sb.AppendLine();
             }
             
             return sb.ToString();
         }
         
-        /// <summary>
-        /// Get character letter at specific position, or '+' if empty
-        /// </summary>
         private char GetCharacterAtPosition(int x, int y)
         {
             var character = _characters.FirstOrDefault(c => 
                 c.Position.X == x && c.Position.Y == y);
             
-            if (character != null)
-            {
-                // Use first letter of character name
-                return char.ToUpper(character.Name[0]);
-            }
-            
-            return '.'; // Empty junction point
+            return character != null ? char.ToUpper(character.Name[0]) : '.';
         }
         
-        /// <summary>
-        /// Generate combat status display
-        /// </summary>
         public string DrawCombatStatus()
         {
             var sb = new StringBuilder();
@@ -108,9 +82,6 @@ namespace RPGGame.Display
             return sb.ToString();
         }
         
-        /// <summary>
-        /// Show valid attack targets for a character
-        /// </summary>
         public string DrawAttackRange(Character attacker)
         {
             if (attacker == null) return "";
@@ -118,9 +89,7 @@ namespace RPGGame.Display
             var targets = GetCharactersInAttackRange(attacker);
             
             if (!targets.Any())
-            {
                 return $"{attacker.Name} has no valid targets in attack range (adjacent positions).\n";
-            }
             
             var sb = new StringBuilder();
             sb.AppendLine($"{attacker.Name} can attack:");
@@ -135,9 +104,6 @@ namespace RPGGame.Display
             return sb.ToString();
         }
         
-        /// <summary>
-        /// Get all characters within attack range (8 adjacent positions)
-        /// </summary>
         public List<Character> GetCharactersInAttackRange(Character attacker)
         {
             if (attacker == null) return new List<Character>();
@@ -149,21 +115,13 @@ namespace RPGGame.Display
             ).ToList();
         }
         
-        /// <summary>
-        /// Check if target position is within attack range (adjacent, including diagonal)
-        /// </summary>
         public bool IsInAttackRange(Position attackerPos, Position targetPos)
         {
             int dx = Math.Abs(attackerPos.X - targetPos.X);
             int dy = Math.Abs(attackerPos.Y - targetPos.Y);
-            
-            // Adjacent positions (including diagonal): max 1 step in any direction
             return dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0);
         }
         
-        /// <summary>
-        /// Display movement options for a character
-        /// </summary>
         public string DrawMovementOptions(Character character)
         {
             if (character == null) return "";
@@ -181,39 +139,29 @@ namespace RPGGame.Display
             }
             
             if (!validMoves.Any())
-            {
                 sb.AppendLine("  No valid movement positions available.");
-            }
             
             return sb.ToString();
         }
         
-        /// <summary>
-        /// Get valid movement positions (adjacent empty spots)
-        /// </summary>
         public List<Position> GetValidMovePositions(Character character)
         {
             var positions = new List<Position>();
             var currentPos = character.Position;
             
-            // Check all 8 adjacent positions
             for (int dx = -1; dx <= 1; dx++)
             {
                 for (int dy = -1; dy <= 1; dy++)
                 {
-                    if (dx == 0 && dy == 0) continue; // Skip current position
+                    if (dx == 0 && dy == 0) continue;
                     
                     var newPos = new Position(currentPos.X + dx, currentPos.Y + dy);
                     
-                    // Check bounds
                     if (newPos.X >= 0 && newPos.X < _width && 
                         newPos.Y >= 0 && newPos.Y < _height)
                     {
-                        // Check if position is empty
                         if (!_characters.Any(c => c.Position.Equals(newPos)))
-                        {
                             positions.Add(newPos);
-                        }
                     }
                 }
             }
@@ -221,27 +169,12 @@ namespace RPGGame.Display
             return positions;
         }
         
-        /// <summary>
-        /// Check if character would be in attack range of enemies at this position
-        /// </summary>
         private bool WouldBeInDangerAt(Character character, Position position)
         {
             var enemies = _characters.Where(c => c != character && c.IsAlive);
-            
-            foreach (var enemy in enemies)
-            {
-                if (IsInAttackRange(enemy.Position, position))
-                {
-                    return true;
-                }
-            }
-            
-            return false;
+            return enemies.Any(enemy => IsInAttackRange(enemy.Position, position));
         }
         
-        /// <summary>
-        /// Create a formatted game display with grid and status
-        /// </summary>
         public string CreateFullDisplay(string additionalInfo = "")
         {
             var sb = new StringBuilder();

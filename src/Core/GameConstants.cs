@@ -8,9 +8,9 @@ namespace RPGGame.Core
     /// </summary>
     public static class GameConstants
     {
-        // Grid Settings
-        public static int GRID_WIDTH => GameConfig.Current.Grid.Width;
-        public static int GRID_HEIGHT => GameConfig.Current.Grid.Height;
+        // Grid Settings (viewport dimensions - now 64x64 sight range)
+        public static int GRID_WIDTH => GameConfig.Current.Grid.Viewport.Width;
+        public static int GRID_HEIGHT => GameConfig.Current.Grid.Viewport.Height;
         
         // Combat Constants
         public static int ATTACK_STAMINA_COST => GameConfig.Current.Combat.StaminaCosts.Attack;

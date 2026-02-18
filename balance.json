@@ -1,11 +1,11 @@
 {
   "combat": {
     "staminaCosts": {
-      "attack": 5,
-      "defend": 3,
-      "move": 2
+      "attack": 3,
+      "defend": 2,
+      "move": 1
     },
-    "restStaminaRestore": 1,
+    "restStaminaRestore": 5,
     "attackRange": 1,
     "counterGauge": {
       "maximum": 6
@@ -19,13 +19,22 @@
     }
   },
   "grid": {
-    "width": 8,
-    "height": 8,
+    "width": 64,
+    "height": 64,
+    "viewport": {
+      "width": 64,
+      "height": 64
+    },
+    "arena": {
+      "diameter": 128,
+      "centerX": 64,
+      "centerY": 64
+    },
     "startingPositions": [
-      { "x": 2, "y": 2 },
-      { "x": 5, "y": 5 },
-      { "x": 2, "y": 5 },
-      { "x": 5, "y": 2 }
+      { "x": 62, "y": 62 },
+      { "x": 66, "y": 66 },
+      { "x": 62, "y": 66 },
+      { "x": 66, "y": 62 }
     ]
   },
   "turns": {
@@ -35,20 +44,7 @@
     "maxSkipAttempts": 10
   },
   "movement": {
-    "simpleMove": {
-      "diceCount": 1,
-      "diceSides": 6
-    },
-    "dashMove": {
-      "diceCount": 2,
-      "diceSides": 6
-    }
-  },
-  "_future": {
-    "equipment": {},
-    "statusEffects": {},
-    "abilities": {},
-    "aiProfiles": {},
-    "gameModes": {}
+    "simpleMove": { "diceCount": 1, "diceSides": 6 },
+    "dashMove": { "diceCount": 2, "diceSides": 6 }
   }
 }

@@ -72,9 +72,9 @@ namespace RPGGame.Core
 
 			// SAFETY: Prevent infinite recursion
 			int attempts = 0;
-			const int MAX_ATTEMPTS = 10;
+			int maxAttempts = GameConfig.Current.Turns.MaxSkipAttempts;
 
-			while (attempts < MAX_ATTEMPTS)
+			while (attempts < maxAttempts)
 			{
 				if (_turnQueue.Count == 0)
 				{
@@ -100,8 +100,9 @@ namespace RPGGame.Core
 				// Character can't act - force rest if alive but no stamina
 				if (_currentActor.IsAlive && _currentActor.CurrentStamina == 0)
 				{
+					var restAmount = GameConfig.Current.Turns.ForcedRestRestore;
 					LogTurn($"{_currentActor.Name} has no stamina - forced to rest");
-					_currentActor.RestoreStamina(5); // Force rest
+					_currentActor.RestoreStamina(restAmount);
 					
 					return new TurnResult
 					{
@@ -109,7 +110,7 @@ namespace RPGGame.Core
 						CurrentActor = _currentActor,
 						TurnType = TurnType.Normal,
 						AvailableActions = GetAvailableActions(_currentActor),
-						Message = $"{_currentActor.Name} was forced to rest (no stamina) and recovered 5 stamina"
+						Message = $"{_currentActor.Name} was forced to rest (no stamina) and recovered {restAmount} stamina"
 					};
 				}
 
@@ -243,10 +244,11 @@ namespace RPGGame.Core
         private List<ActionChoice> GetAvailableActions(Character character)
         {
             var actions = new List<ActionChoice>();
+            var costs = GameConfig.Current.Combat.StaminaCosts;
             
-            if (character.CurrentStamina >= 3) actions.Add(ActionChoice.Attack);
-            if (character.CurrentStamina >= 2) actions.Add(ActionChoice.Defend);
-            if (character.CurrentStamina >= 1) actions.Add(ActionChoice.Move);
+            if (character.CurrentStamina >= costs.Attack) actions.Add(ActionChoice.Attack);
+            if (character.CurrentStamina >= costs.Defend) actions.Add(ActionChoice.Defend);
+            if (character.CurrentStamina >= costs.Move) actions.Add(ActionChoice.Move);
             actions.Add(ActionChoice.Rest); // Always available
             
             return actions;
@@ -260,7 +262,7 @@ namespace RPGGame.Core
             if (target == null || !target.IsAlive)
                 return new ActionResult { Success = false, Message = "Invalid target" };
             
-            if (_currentActor.CurrentStamina < 3)
+            if (_currentActor.CurrentStamina < GameConfig.Current.Combat.StaminaCosts.Attack)
                 return new ActionResult { Success = false, Message = "Insufficient stamina for attack" };
             
             return new ActionResult
@@ -288,10 +290,12 @@ namespace RPGGame.Core
         
         private ActionResult HandleMoveAction()
         {
-            if (_currentActor.CurrentStamina < 1)
+            var moveCost = GameConfig.Current.Combat.StaminaCosts.Move;
+            
+            if (_currentActor.CurrentStamina < moveCost)
                 return new ActionResult { Success = false, Message = "Insufficient stamina for movement" };
             
-            _currentActor.UseStamina(1);
+            _currentActor.UseStamina(moveCost);
             
             return new ActionResult
             {
@@ -305,7 +309,8 @@ namespace RPGGame.Core
         private ActionResult HandleRestAction()
         {
             // Rest restores stamina and allows access to special abilities
-            int staminaRestored = Math.Min(5, _currentActor.MaxStamina - _currentActor.CurrentStamina);
+            var restAmount = GameConfig.Current.Combat.RestStaminaRestore;
+            int staminaRestored = Math.Min(restAmount, _currentActor.MaxStamina - _currentActor.CurrentStamina);
             _currentActor.RestoreStamina(staminaRestored);
             
             return new ActionResult

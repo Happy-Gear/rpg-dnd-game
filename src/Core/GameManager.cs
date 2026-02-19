@@ -34,7 +34,7 @@ namespace RPGGame.Core
         private DefenseResult _pendingEvasionResult;
         private Character _evadingCharacter;
         
-        // NEW: Enhanced movement state for WASD system
+        // Enhanced movement state for WASD system
         private bool _inMovementMode;
         private List<Position> _movementPath;
         private Position _movementStartPosition;
@@ -48,7 +48,7 @@ namespace RPGGame.Core
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
         
-        // NEW: Properties for movement mode
+        // Properties for movement mode
         public bool InMovementMode => _inMovementMode;
         public int MovementPointsRemaining => _activeMovementResult?.MaxDistance - _movementPointsUsed ?? 0;
         public List<Position> CurrentPath => new List<Position>(_movementPath ?? new List<Position>());
@@ -328,6 +328,7 @@ namespace RPGGame.Core
         
         /// <summary>
         /// Confirm the movement path and execute it
+        /// BUG FIX: Capture _movementPointsUsed BEFORE ExitMovementMode() clears it to 0
         /// </summary>
         private string ConfirmMovementPath()
         {
@@ -337,46 +338,35 @@ namespace RPGGame.Core
             }
             
             var finalPosition = _movementPath.Last();
-            
-            // Use the character from movement result, not current actor (fixes evasion bug)
             var character = _activeMovementResult?.Character ?? CurrentActor;
             
             if (character == null)
-            {
                 return "Error: No current actor found.";
-            }
             
             if (_activeMovementResult == null)
-            {
                 return "Error: Movement result not found.";
-            }
             
-            // Execute the movement on the correct character
-            character.Position = finalPosition;
-            
-            // Check if this is evasion movement (no stamina cost, ends turn)
+            // BUG FIX: Capture BEFORE ExitMovementMode() clears _movementPointsUsed to 0
+            int pointsUsed = _movementPointsUsed;
             bool isEvasionMovement = _activeMovementResult.StaminaCost == 0;
-            
-            if (!isEvasionMovement)
-            {
-                character.UseStamina(_activeMovementResult.StaminaCost);
-            }
-            
-            // Store movement result before exiting movement mode
             bool allowsSecondAction = _activeMovementResult.AllowsSecondAction && !isEvasionMovement;
             
-            ExitMovementMode();
+            // Execute the movement
+            character.Position = finalPosition;
             
-            var result = "";
+            if (!isEvasionMovement)
+                character.UseStamina(_activeMovementResult.StaminaCost);
+            
+            ExitMovementMode(); // This clears _movementPointsUsed — must happen AFTER capturing pointsUsed
             
             if (isEvasionMovement)
             {
-                result = $"{character.Name} moves to ({finalPosition.X},{finalPosition.Y}) after successful evasion.\n\n";
+                var result = $"{character.Name} moves to ({finalPosition.X},{finalPosition.Y}) after successful evasion.\n\n";
                 return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
             }
             else
             {
-                result = $"{character.Name} moved to ({finalPosition.X},{finalPosition.Y}) using {_movementPointsUsed} movement points.\n";
+                var result = $"{character.Name} moved to ({finalPosition.X},{finalPosition.Y}) using {pointsUsed} movement points.\n";
                 
                 if (allowsSecondAction)
                 {
@@ -445,26 +435,18 @@ namespace RPGGame.Core
         /// </summary>
         private string DrawMovementInterface(string message = "")
         {
-            // Use the moving character from movement result, not current actor (fixes evasion bug)
             var character = _activeMovementResult?.Character ?? CurrentActor;
             if (character == null || _activeMovementResult == null)
-            {
                 return "Movement mode error - please restart movement.";
-            }
             
-            // Create a temporary grid that shows the movement path
             var sb = new System.Text.StringBuilder();
             
             sb.AppendLine("╔═══════════════════ RPG COMBAT GRID ═══════════════════╗");
             sb.AppendLine();
-            
-            // Draw the grid with live path preview
             sb.Append(DrawGridWithMovementPreview(character));
-            
             sb.AppendLine();
             sb.AppendLine("=== COMBAT STATUS ===");
             
-            // Show other players' status (excluding the moving character)
             foreach (var player in _players.Where(p => p != character).OrderBy(c => c.Name))
             {
                 char symbol = char.ToUpper(player.Name[0]);
@@ -521,28 +503,20 @@ namespace RPGGame.Core
         {
             var sb = new System.Text.StringBuilder();
             
-            // Draw grid with movement preview
-            for (int y = 7; y >= 0; y--) // Top to bottom for proper display (8x8 grid)
+            for (int y = 7; y >= 0; y--)
             {
-                // Draw row with character positions and movement preview
                 for (int x = 0; x < 8; x++)
                 {
                     char displayChar = GetCharacterAtPositionWithPreview(x, y, movingCharacter);
                     sb.Append(displayChar);
                     
-                    // Add spaces between grid points (except last column)
                     if (x < 7)
-                    {
-                        sb.Append("   "); // 3 spaces between positions
-                    }
+                        sb.Append("   ");
                 }
                 sb.AppendLine();
 
-                // Add vertical spacing (except last row)
                 if (y > 0)
-                {
-                    sb.AppendLine(); // Empty line for vertical spacing
-                }
+                    sb.AppendLine();
             }
             
             return sb.ToString();
@@ -555,48 +529,33 @@ namespace RPGGame.Core
         {
             var pos = new Position(x, y);
             
-            // Check if this is where the moving character would end up
             if (_movementPath != null && _movementPath.Count > 0)
             {
                 var finalPos = _movementPath.Last();
                 if (finalPos.X == x && finalPos.Y == y)
-                {
-                    return char.ToUpper(movingCharacter.Name[0]); // Show character at new position
-                }
+                    return char.ToUpper(movingCharacter.Name[0]);
                 
-                // Show path breadcrumbs for intermediate positions (except final)
-                var pathPositions = _movementPath.Take(_movementPath.Count - 1); // All except last
+                var pathPositions = _movementPath.Take(_movementPath.Count - 1);
                 if (pathPositions.Any(p => p.X == x && p.Y == y))
-                {
-                    return '·'; // Show path trail
-                }
+                    return '·';
             }
             else
             {
-                // Show character at current position when no movement made yet
                 if (movingCharacter.Position.X == x && movingCharacter.Position.Y == y)
-                {
                     return char.ToUpper(movingCharacter.Name[0]);
-                }
             }
             
-            // Check for other characters (not the moving one)
             var otherCharacter = _players.FirstOrDefault(c => 
                 c != movingCharacter && c.IsAlive && c.Position.X == x && c.Position.Y == y);
             
             if (otherCharacter != null)
-            {
                 return char.ToUpper(otherCharacter.Name[0]);
-            }
             
-            // Show starting position of moving character if they've moved
             if (_movementPath != null && _movementPath.Count > 0 && 
                 movingCharacter.Position.X == x && movingCharacter.Position.Y == y)
-            {
-                return '○'; // Show starting position as empty circle
-            }
+                return '○';
             
-            return '.'; // Empty position
+            return '.';
         }
         
         /// <summary>
@@ -612,14 +571,13 @@ namespace RPGGame.Core
         /// </summary>
         private void SetupEvasionMovementMode(Character character, int maxDistance)
         {
-            // Create a fake movement result for evasion movement
             _activeMovementResult = new MovementResult
             {
                 Character = character,
-                MovementType = MovementType.Simple, // Evasion acts like simple movement
+                MovementType = MovementType.Simple,
                 MaxDistance = maxDistance,
-                StaminaCost = 0, // No additional stamina cost (already paid for evasion)
-                AllowsSecondAction = false, // Evasion movement ends the defense phase
+                StaminaCost = 0,
+                AllowsSecondAction = false,
                 ValidPositions = GetPositionsWithinDistance(character.Position, maxDistance, character)
             };
             
@@ -630,29 +588,25 @@ namespace RPGGame.Core
         }
         
         /// <summary>
-        /// Get all valid positions within evasion distance (helper for evasion movement)
+        /// Get all valid positions within evasion distance
         /// </summary>
         private List<Position> GetPositionsWithinDistance(Position start, int maxDistance, Character movingCharacter)
         {
             var positions = new List<Position>();
             
-            // Check all positions within Manhattan distance
             for (int x = start.X - maxDistance; x <= start.X + maxDistance; x++)
             {
                 for (int y = start.Y - maxDistance; y <= start.Y + maxDistance; y++)
                 {
-                    if (x == start.X && y == start.Y) continue; // Skip current position
+                    if (x == start.X && y == start.Y) continue;
                     
                     var newPos = new Position(x, y);
                     var distance = Math.Abs(start.X - newPos.X) + Math.Abs(start.Y - newPos.Y);
                     
                     if (distance <= maxDistance && IsValidGridPosition(newPos))
                     {
-                        // Check if position is not occupied by another character
                         if (!_players.Any(p => p != movingCharacter && p.IsAlive && p.Position.Equals(newPos)))
-                        {
                             positions.Add(newPos);
-                        }
                     }
                 }
             }
@@ -665,7 +619,7 @@ namespace RPGGame.Core
         /// </summary>
         private bool IsValidGridPosition(Position pos)
         {
-            return pos.X >= 0 && pos.X < 8 && pos.Y >= 0 && pos.Y < 8; // 8x8 grid
+            return pos.X >= 0 && pos.X < 8 && pos.Y >= 0 && pos.Y < 8;
         }
         
         /// <summary>
@@ -728,16 +682,10 @@ namespace RPGGame.Core
         /// </summary>
         private string HandleMoveAction(Position targetPosition = null)
         {
-            var character = CurrentActor;
-            
             if (targetPosition != null)
-            {
                 return HandleDirectMovement(targetPosition, MovementType.Simple);
-            }
             else
-            {
                 return EnterMovementMode(MovementType.Simple);
-            }
         }
         
         /// <summary>
@@ -745,16 +693,10 @@ namespace RPGGame.Core
         /// </summary>
         private string HandleDashAction(Position targetPosition = null)
         {
-            var character = CurrentActor;
-            
             if (targetPosition != null)
-            {
                 return HandleDirectMovement(targetPosition, MovementType.Dash);
-            }
             else
-            {
                 return EnterMovementMode(MovementType.Dash);
-            }
         }
         
         /// <summary>
@@ -836,7 +778,7 @@ namespace RPGGame.Core
                    "  'move' - Move again (1d6) using WASD\n" +
                    "  'dash' - Dash move (2d6) using WASD, ends turn\n" +
                    "  'rest' - Recover stamina\n" +
-                   "  'defend' - Take defensive stance";
+                   "  'defend' - Take defensive stance (costs 1 stamina)";
         }
         
         /// <summary>
@@ -845,9 +787,11 @@ namespace RPGGame.Core
         private string AdvanceToNextTurn()
         {
             if (_inMovementMode)
-            {
                 ExitMovementMode();
-            }
+            
+            // Safety: ensure no character is stuck at 0 stamina before advancing
+            foreach (var p in _players.Where(p => p.IsAlive && p.CurrentStamina == 0))
+                p.RestoreStamina(5);
             
             var nextTurn = _turnManager.NextTurn();
             ResetActionTracking();
@@ -879,31 +823,24 @@ namespace RPGGame.Core
                     break;
                 default:
                     if (_inputHandler.IsDefenseChoice(actionCommand.RawInput))
-                    {
                         choice = _inputHandler.ParseDefenseChoice(actionCommand.RawInput);
-                    }
                     break;
             }
             
             if (choice == null)
-            {
                 return "Invalid defense choice. Use: 'defend', 'move', or 'take'";
-            }
             
             var defenseResult = _combatSystem.ResolveDefense(_defendingCharacter, _pendingAttack, choice.Value);
-            
             var resultMessage = $"{_pendingAttack.Message}\n{defenseResult.Message}\n";
             
             UseAction(allowsSecondAction: false);
             
             if (defenseResult.DefenseChoice == RPGGame.Combat.DefenseChoice.Move && defenseResult.CanMove)
             {
-                // Enter WASD evasion movement mode instead of coordinate input
-                _waitingForEvasionMovement = false; // Don't use old coordinate system
+                _waitingForEvasionMovement = false;
                 _pendingEvasionResult = null;
                 _evadingCharacter = null;
                 
-                // Set up WASD evasion movement mode
                 SetupEvasionMovementMode(_defendingCharacter, defenseResult.MovementDistance);
                 
                 resultMessage += $"\n{_defendingCharacter.Name} successfully evaded and can now move up to {defenseResult.MovementDistance} spaces!\n";
@@ -926,6 +863,7 @@ namespace RPGGame.Core
             _pendingAttack = null;
             _defendingCharacter = null;
             
+            // Check win condition
             if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
             {
                 var winner = _players.FirstOrDefault(p => p.IsAlive);
@@ -1010,7 +948,6 @@ namespace RPGGame.Core
                         {
                             result += "Used 1 stamina, can still act once more!\n\n";
                             result += GetContinuedTurnInstructions();
-                            
                             _pendingMovement = null;
                             return _gridDisplay.CreateFullDisplay(result);
                         }
@@ -1025,7 +962,6 @@ namespace RPGGame.Core
                     {
                         UseAction(allowsSecondAction: false);
                         result += "Used 1 stamina, turn ends.\n\n";
-                        
                         _pendingMovement = null;
                         return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
                     }
@@ -1047,84 +983,78 @@ namespace RPGGame.Core
         /// <summary>
         /// Handle attack action with range checking
         /// </summary>
-		private string HandleAttackAction(Character target)
-		{
-			var attacker = CurrentActor; // CRITICAL: Always use CurrentActor as attacker
-			
-			// Validate attacker exists and can act
-			if (attacker == null)
-			{
-				return _gridDisplay.CreateFullDisplay("No current actor found!");
-			}
-			
-			if (target == null)
-			{
-				var validTargets = _gridDisplay.GetCharactersInAttackRange(attacker);
-				if (!validTargets.Any())
-				{
-					return _gridDisplay.CreateFullDisplay(
-						"No valid targets in range!\n" +
-						"Move closer to attack. Use 'move' (WASD mode) or 'dash' to reposition."
-					);
-				}
-				
-				return _gridDisplay.CreateFullDisplay(
-					"Choose a target to attack:\n" +
-					_gridDisplay.DrawAttackRange(attacker) + // Show ATTACKER's range
-					"Use 'attack [character letter]' (e.g., 'attack B')"
-				);
-			}
-			
-			// CRITICAL FIX: Use attacker.Position (CurrentActor) not target.Position
-			if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
-			{
-				return _gridDisplay.CreateFullDisplay(
-					$"{target.Name} is not in attack range! You must be adjacent (including diagonal).\n" +
-					_gridDisplay.DrawAttackRange(attacker) + // Show ATTACKER's options
-					$"\nDebug: {attacker.Name} at ({attacker.Position.X},{attacker.Position.Y}) " +
-					$"trying to attack {target.Name} at ({target.Position.X},{target.Position.Y})"
-				);
-			}
-			
-			var attackResult = _combatSystem.ExecuteAttack(attacker, target);
-			
-			if (!attackResult.Success)
-			{
-				return _gridDisplay.CreateFullDisplay(attackResult.Message);
-			}
-			
-			// For counter attacks, execute immediately (no defense choice)
-			if (_turnManager.CurrentActor != null && 
-				_turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
-			{
-				// Counter attacks bypass defense - apply damage directly
-				var counterResult = _combatSystem.ExecuteCounterAttack(attacker, target);
-				
-				if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
-				{
-					var winner = _players.FirstOrDefault(p => p.IsAlive);
-					return _gridDisplay.CreateFullDisplay(
-						counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!"
-					);
-				}
-				
-				return _gridDisplay.CreateFullDisplay(counterResult.Message + "\n") + AdvanceToNextTurn();
-			}
-			
-			// Regular attack - wait for defense choice
-			_pendingAttack = attackResult;
-			_defendingCharacter = target;
-			_waitingForDefenseChoice = true;
-			
-			return _gridDisplay.CreateFullDisplay(
-				$"{attackResult.Message}\n\n" +
-				$"{target.Name}, choose your response:\n" +
-				"  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
-				"  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
-				"  'take' - Save stamina, take full damage\n" +
-				$"\nTarget has {target.CurrentStamina} stamina available."
-			);
-		}
+        private string HandleAttackAction(Character target)
+        {
+            var attacker = CurrentActor;
+            
+            if (attacker == null)
+                return _gridDisplay.CreateFullDisplay("No current actor found!");
+            
+            if (target == null)
+            {
+                var validTargets = _gridDisplay.GetCharactersInAttackRange(attacker);
+                if (!validTargets.Any())
+                {
+                    return _gridDisplay.CreateFullDisplay(
+                        "No valid targets in range!\n" +
+                        "Move closer to attack. Use 'move' (WASD mode) or 'dash' to reposition."
+                    );
+                }
+                
+                return _gridDisplay.CreateFullDisplay(
+                    "Choose a target to attack:\n" +
+                    _gridDisplay.DrawAttackRange(attacker) +
+                    "Use 'attack [character letter]' (e.g., 'attack B')"
+                );
+            }
+            
+            if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
+            {
+                return _gridDisplay.CreateFullDisplay(
+                    $"{target.Name} is not in attack range! You must be adjacent (including diagonal).\n" +
+                    _gridDisplay.DrawAttackRange(attacker) +
+                    $"\nDebug: {attacker.Name} at ({attacker.Position.X},{attacker.Position.Y}) " +
+                    $"trying to attack {target.Name} at ({target.Position.X},{target.Position.Y})"
+                );
+            }
+            
+            var attackResult = _combatSystem.ExecuteAttack(attacker, target);
+            
+            if (!attackResult.Success)
+                return _gridDisplay.CreateFullDisplay(attackResult.Message);
+            
+            // Counter attack turns bypass defense
+            if (_turnManager.CurrentActor != null && 
+                _turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
+            {
+                var counterResult = _combatSystem.ExecuteCounterAttack(attacker, target);
+                
+                if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
+                {
+                    var winner = _players.FirstOrDefault(p => p.IsAlive);
+                    return _gridDisplay.CreateFullDisplay(
+                        counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!"
+                    );
+                }
+                
+                return _gridDisplay.CreateFullDisplay(counterResult.Message + "\n") + AdvanceToNextTurn();
+            }
+            
+            // Regular attack - wait for defense choice
+            _pendingAttack = attackResult;
+            _defendingCharacter = target;
+            _waitingForDefenseChoice = true;
+            
+            return _gridDisplay.CreateFullDisplay(
+                $"{attackResult.Message}\n\n" +
+                $"{target.Name}, choose your response:\n" +
+                "  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
+                "  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
+                "  'take' - Save stamina, take full damage\n" +
+                $"\nTarget has {target.CurrentStamina} stamina available."
+            );
+        }
+        
         /// <summary>
         /// Get movement options display (legacy)
         /// </summary>
@@ -1144,9 +1074,7 @@ namespace RPGGame.Core
             }
             
             if (moveResult.ValidPositions.Count > 20)
-            {
                 options += $"  ... and {moveResult.ValidPositions.Count - 20} more positions\n";
-            }
             
             return options;
         }
@@ -1160,36 +1088,32 @@ namespace RPGGame.Core
             var staminaRestored = Math.Min(5, character.MaxStamina - character.CurrentStamina);
             character.RestoreStamina(staminaRestored);
             
-            // Check if turn should continue after rest
-            bool turnContinues = UseAction(allowsSecondAction: false);
+            UseAction(allowsSecondAction: false);
             
-            var result = $"{character.Name} rests and recovers {staminaRestored} stamina.\n";
-            
-            if (turnContinues)
-            {
-                // This shouldn't normally happen since rest doesn't allow second action
-                result += "Turn continues...\n\n";
-                result += GetContinuedTurnInstructions();
-                return _gridDisplay.CreateFullDisplay(result);
-            }
-            else
-            {
-                // Turn ends after rest
-                result += "\n";
-                return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-            }
+            var result = $"{character.Name} rests and recovers {staminaRestored} stamina.\n\n";
+            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
         }
         
         /// <summary>
-        /// Handle defend action (defensive stance)
+        /// Handle defend action (defensive stance).
+        /// BUG FIX: Now costs 1 stamina to prevent infinite stalemate at low stamina.
         /// </summary>
         private string HandleDefendAction()
         {
             var character = CurrentActor;
             
+            // BUG FIX: Defend stance now costs 1 stamina
+            if (!character.UseStamina(1))
+            {
+                return _gridDisplay.CreateFullDisplay(
+                    $"{character.Name} doesn't have enough stamina to take a defensive stance!\n" +
+                    "Try 'rest' to recover stamina instead."
+                );
+            }
+            
             UseAction(allowsSecondAction: false);
             
-            var result = $"{character.Name} takes a defensive stance.\n\n";
+            var result = $"{character.Name} takes a defensive stance. (-1 SP)\n\n";
             return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
         }
         
@@ -1207,9 +1131,7 @@ namespace RPGGame.Core
             };
             
             for (int i = 0; i < _players.Count && i < positions.Count; i++)
-            {
                 _players[i].Position = positions[i];
-            }
         }
         
         /// <summary>
@@ -1239,7 +1161,7 @@ namespace RPGGame.Core
             if (turn.AvailableActions.Contains(ActionChoice.Rest))
                 instructions += "  'rest' - Recover stamina\n";
             if (turn.AvailableActions.Contains(ActionChoice.Defend))
-                instructions += "  'defend' - Take defensive stance\n";
+                instructions += "  'defend' - Take defensive stance (costs 1 stamina)\n";
             
             instructions += "\nMovement: Use WASD keys for intuitive step-by-step movement!";
             instructions += "\nType 'help' for more information.";
@@ -1257,19 +1179,20 @@ namespace RPGGame.Core
                    "  move - Enter WASD movement mode (responsive controls)\n" +
                    "  dash - Enter WASD dash mode (responsive controls, ends turn)\n" +
                    "  move/dash x y - Legacy: Move to specific coordinates\n" +
-                   "  rest - Recover stamina\n" +
-                   "  defend - Take defensive stance\n\n" +
+                   "  rest - Recover 5 stamina\n" +
+                   "  defend - Take defensive stance (costs 1 stamina)\n\n" +
                    "WASD Movement (Responsive - No Enter Needed):\n" +
                    "  W/↑ - Move up     S/↓ - Move down\n" +
                    "  A/← - Move left   D/→ - Move right\n" +
                    "  Enter/Space - Confirm path   R - Reset path   ESC - Cancel\n\n" +
                    "Examples: 'attack B', 'move', 'dash'\n" +
                    "Characters are shown by their first letter on the grid.\n\n" +
-                   "Input Modes:\n" +
-                   "  • Text Commands: Type and press Enter (e.g., 'attack B')\n" +
-                   "  • WASD Keys: Direct key presses in movement mode\n\n" +
-                   "Action Economy: Most actions end your turn immediately.\n" +
-                   "Only 'move' allows one additional action before ending turn.";
+                   "Stamina Costs:\n" +
+                   "  Attack: 3 SP   Defend (response): 2 SP   Evasion: 1 SP\n" +
+                   "  Move: 1 SP     Dash: 1 SP                Defend stance: 1 SP\n" +
+                   "  Rest: free (recovers 5 SP)\n\n" +
+                   "Action Economy: 'move' allows one additional action before ending turn.\n" +
+                   "All other actions end your turn immediately.";
         }
     }
 }

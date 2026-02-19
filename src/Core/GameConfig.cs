@@ -32,6 +32,8 @@ namespace RPGGame.Core
         [JsonPropertyName("movement")]
         public MovementConfig Movement { get; set; } = new();
 
+        // === Singleton access ===
+
         public static GameConfig Current
         {
             get
@@ -46,6 +48,8 @@ namespace RPGGame.Core
                 return _instance;
             }
         }
+
+        // === Loading ===
 
         public static GameConfig LoadFromFile(string filePath)
         {
@@ -104,6 +108,8 @@ namespace RPGGame.Core
             }
         }
 
+        // === Validation ===
+
         public void Validate()
         {
             var errors = new List<string>();
@@ -122,9 +128,12 @@ namespace RPGGame.Core
             if (Characters.Defaults.StatValue < 0) errors.Add("characters.defaults.statValue must be >= 0");
 
             // Grid
-            if (Grid.Viewport.Width < 4) errors.Add("grid.viewport.width must be >= 4");
-            if (Grid.Viewport.Height < 4) errors.Add("grid.viewport.height must be >= 4");
-            if (Grid.Arena.Diameter < 4) errors.Add("grid.arena.diameter must be >= 4");
+            if (Grid.Width < 2) errors.Add("grid.width must be >= 2");
+            if (Grid.Height < 2) errors.Add("grid.height must be >= 2");
+            if (Grid.Viewport.Width < 3) errors.Add("grid.viewport.width must be >= 3");
+            if (Grid.Viewport.Height < 3) errors.Add("grid.viewport.height must be >= 3");
+            if (Grid.Viewport.Width % 2 == 0) errors.Add("grid.viewport.width should be odd for clean centering");
+            if (Grid.Viewport.Height % 2 == 0) errors.Add("grid.viewport.height should be odd for clean centering");
             if (Grid.StartingPositions == null || Grid.StartingPositions.Count == 0)
                 errors.Add("grid.startingPositions must have at least one entry");
 
@@ -133,8 +142,8 @@ namespace RPGGame.Core
                 for (int i = 0; i < Grid.StartingPositions.Count; i++)
                 {
                     var pos = Grid.StartingPositions[i];
-                    if (!Grid.IsValidArenaPosition(pos.X, pos.Y))
-                        errors.Add($"grid.startingPositions[{i}] ({pos.X},{pos.Y}) is outside the circular arena");
+                    if (pos.X < 0 || pos.X >= Grid.Width || pos.Y < 0 || pos.Y >= Grid.Height)
+                        errors.Add($"grid.startingPositions[{i}] ({pos.X},{pos.Y}) is outside grid bounds ({Grid.Width}x{Grid.Height})");
                 }
             }
 
@@ -210,59 +219,34 @@ namespace RPGGame.Core
 
     public class GridConfig
     {
+        /// <summary>
+        /// Total arena width in tiles
+        /// </summary>
         [JsonPropertyName("width")]
-        public int Width { get; set; } = 64;
+        public int Width { get; set; } = 128;
 
+        /// <summary>
+        /// Total arena height in tiles
+        /// </summary>
         [JsonPropertyName("height")]
-        public int Height { get; set; } = 64;
+        public int Height { get; set; } = 128;
 
+        /// <summary>
+        /// Terminal viewport - how many tiles are visible around the focus character.
+        /// Should be odd numbers so the focus character sits in the exact center.
+        /// e.g. width=17 means 8 tiles visible left + focus tile + 8 tiles right.
+        /// </summary>
         [JsonPropertyName("viewport")]
         public ViewportConfig Viewport { get; set; } = new();
-
-        [JsonPropertyName("arena")]
-        public ArenaConfig Arena { get; set; } = new();
 
         [JsonPropertyName("startingPositions")]
         public List<PositionConfig> StartingPositions { get; set; } = new()
         {
-            new() { X = 62, Y = 62 },
-            new() { X = 66, Y = 66 },
-            new() { X = 62, Y = 66 },
-            new() { X = 66, Y = 62 }
+            new() { X = 2, Y = 2 },
+            new() { X = 5, Y = 5 },
+            new() { X = 2, Y = 5 },
+            new() { X = 5, Y = 2 }
         };
-
-        /// <summary>Check if a world position is inside the circular arena</summary>
-        public bool IsValidArenaPosition(int x, int y)
-        {
-            double radius = Arena.Diameter / 2.0;
-            double dx = x - Arena.CenterX;
-            double dy = y - Arena.CenterY;
-            return (dx * dx + dy * dy) <= (radius * radius);
-        }
-
-        /// <summary>Get viewport bounds centered on player (minX, maxX, minY, maxY)</summary>
-        public (int minX, int maxX, int minY, int maxY) GetViewportBounds(int playerX, int playerY)
-        {
-            int halfW = Viewport.Width / 2;
-            int halfH = Viewport.Height / 2;
-            return (playerX - halfW, playerX + halfW, playerY - halfH, playerY + halfH);
-        }
-
-        /// <summary>Convert world coords to viewport coords. Returns null if outside viewport.</summary>
-        public (int vx, int vy)? WorldToViewport(int playerX, int playerY, int worldX, int worldY)
-        {
-            var (minX, maxX, minY, maxY) = GetViewportBounds(playerX, playerY);
-            if (worldX < minX || worldX > maxX || worldY < minY || worldY > maxY)
-                return null;
-            return (worldX - minX, worldY - minY);
-        }
-
-        /// <summary>Convert viewport coords back to world coords</summary>
-        public (int wx, int wy) ViewportToWorld(int playerX, int playerY, int viewX, int viewY)
-        {
-            var (minX, _, minY, _) = GetViewportBounds(playerX, playerY);
-            return (minX + viewX, minY + viewY);
-        }
 
         public List<Position> GetStartingPositions()
         {
@@ -271,27 +255,25 @@ namespace RPGGame.Core
                 positions.Add(new Position(p.X, p.Y));
             return positions;
         }
+
+        /// <summary>Half width of viewport (tiles visible to each side of focus)</summary>
+        public int ViewportHalfW => Viewport.Width / 2;
+
+        /// <summary>Half height of viewport (tiles visible above/below focus)</summary>
+        public int ViewportHalfH => Viewport.Height / 2;
     }
 
+    /// <summary>
+    /// How many tiles are rendered in the terminal window.
+    /// The current actor is always centered in this viewport.
+    /// </summary>
     public class ViewportConfig
     {
         [JsonPropertyName("width")]
-        public int Width { get; set; } = 64;
+        public int Width { get; set; } = 17;
 
         [JsonPropertyName("height")]
-        public int Height { get; set; } = 64;
-    }
-
-    public class ArenaConfig
-    {
-        [JsonPropertyName("diameter")]
-        public int Diameter { get; set; } = 128;
-
-        [JsonPropertyName("centerX")]
-        public int CenterX { get; set; } = 64;
-
-        [JsonPropertyName("centerY")]
-        public int CenterY { get; set; } = 64;
+        public int Height { get; set; } = 17;
     }
 
     public class PositionConfig

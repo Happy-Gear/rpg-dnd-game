@@ -11,7 +11,8 @@ using RPGGame.Input;
 namespace RPGGame.Core
 {
     /// <summary>
-    /// Enhanced game manager with intuitive WASD movement system
+    /// Game manager with WASD movement and viewport-centered grid display.
+    /// All grid bounds come from GameConfig (balance.json) — no hardcoded sizes.
     /// </summary>
     public class GameManager
     {
@@ -24,1175 +25,748 @@ namespace RPGGame.Core
         private Character _defendingCharacter;
         private MovementSystem _movementSystem;
         private InputHandler _inputHandler;
-        
-        // Movement state management
+
+        // Movement state
         private MovementResult _pendingMovement;
         private bool _waitingForMovementTarget;
-        
+
         // Post-evasion movement state
         private bool _waitingForEvasionMovement;
         private DefenseResult _pendingEvasionResult;
         private Character _evadingCharacter;
-        
-        // Enhanced movement state for WASD system
+
+        // WASD movement mode state
         private bool _inMovementMode;
         private List<Position> _movementPath;
         private Position _movementStartPosition;
         private int _movementPointsUsed;
         private MovementResult _activeMovementResult;
-        
-        // Action economy tracking
+
+        // Action economy
         private int _actionsUsedThisTurn;
         private int _maxActionsThisTurn;
-        
+
+        // Convenience: arena size from config (avoids repeated lookups)
+        private int ArenaWidth  => GameConfig.Current.Grid.Width;
+        private int ArenaHeight => GameConfig.Current.Grid.Height;
+
         public bool GameActive => _turnManager.GameActive;
         public Character CurrentActor => _turnManager.CurrentActor;
-        
-        // Properties for movement mode
         public bool InMovementMode => _inMovementMode;
-        public int MovementPointsRemaining => _activeMovementResult?.MaxDistance - _movementPointsUsed ?? 0;
+        public int MovementPointsRemaining => (_activeMovementResult?.MaxDistance ?? 0) - _movementPointsUsed;
         public List<Position> CurrentPath => new List<Position>(_movementPath ?? new List<Position>());
-        
-        public GameManager(int gridWidth = 16, int gridHeight = 16)
+
+        public GameManager()
         {
-            _turnManager = new TurnManager();
-            _combatSystem = new CombatSystem();
-            _gridDisplay = new GridDisplay(gridWidth, gridHeight);
-            _players = new List<Character>();
-            _waitingForDefenseChoice = false;
-            _waitingForMovementTarget = false;
-            _waitingForEvasionMovement = false;
-            _pendingMovement = null;
-            _pendingEvasionResult = null;
-            _evadingCharacter = null;
+            _turnManager   = new TurnManager();
+            _combatSystem  = new CombatSystem();
+            _gridDisplay   = new GridDisplay(); // reads config internally
+            _players       = new List<Character>();
+            _movementPath  = new List<Position>();
             _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
-            _inputHandler = new InputHandler();
-            
-            // Initialize movement mode state
-            _inMovementMode = false;
-            _movementPath = new List<Position>();
-            _movementPointsUsed = 0;
-            _activeMovementResult = null;
-            
-            // Initialize action tracking
+            _inputHandler  = new InputHandler();
             ResetActionTracking();
         }
-        
+
         /// <summary>
-        /// Reset action tracking for a new turn
+        /// Legacy constructor — grid size now comes from config; params are ignored.
+        /// Kept so existing call sites compile without changes.
         /// </summary>
+        public GameManager(int ignoredWidth, int ignoredHeight) : this() { }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Action economy
+        // ─────────────────────────────────────────────────────────────────────
+
         private void ResetActionTracking()
         {
             _actionsUsedThisTurn = 0;
-            _maxActionsThisTurn = 1;
+            _maxActionsThisTurn  = 1;
         }
-        
-        /// <summary>
-        /// Check if the current actor can perform another action this turn
-        /// </summary>
-        private bool CanPerformAnotherAction()
-        {
-            return _actionsUsedThisTurn < _maxActionsThisTurn;
-        }
-        
-        /// <summary>
-        /// Record that an action was used and determine if more actions are allowed
-        /// </summary>
+
+        private bool CanPerformAnotherAction() => _actionsUsedThisTurn < _maxActionsThisTurn;
+
         private bool UseAction(bool allowsSecondAction = false)
         {
             _actionsUsedThisTurn++;
-            
             if (_actionsUsedThisTurn == 1 && allowsSecondAction)
-            {
                 _maxActionsThisTurn = 2;
-            }
-            
             return CanPerformAnotherAction();
         }
-        
-        /// <summary>
-        /// Initialize a new game with players
-        /// </summary>
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Game startup
+        // ─────────────────────────────────────────────────────────────────────
+
         public string StartGame(params Character[] players)
         {
             _players = players.ToList();
             PlacePlayersOnGrid();
             _turnManager.StartCombat(_players.ToArray());
             _gridDisplay.UpdateCharacters(_players);
-            
+
             var firstTurn = _turnManager.NextTurn();
             ResetActionTracking();
-            
-            return _gridDisplay.CreateFullDisplay(
-                $"Game started! {firstTurn.Message}\n" +
-                GetTurnInstructions(firstTurn)
+
+            return CreateDisplay(
+                firstTurn.CurrentActor,
+                $"Game started! {firstTurn.Message}\n" + GetTurnInstructions(firstTurn)
             );
         }
-        
-        /// <summary>
-        /// Process player action input - Text commands
-        /// </summary>
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Input entry points
+        // ─────────────────────────────────────────────────────────────────────
+
         public string ProcessAction(string input)
         {
-            if (!GameActive)
-                return "Game is not active.";
-
-            var actionCommand = _inputHandler.ProcessActionInput(input);
-            return ProcessGameAction(actionCommand);
+            if (!GameActive) return "Game is not active.";
+            var cmd = _inputHandler.ProcessActionInput(input);
+            return ProcessGameAction(cmd);
         }
-        
-        /// <summary>
-        /// Process direct console key input for responsive controls
-        /// </summary>
+
         public string ProcessKeyInput(ConsoleKeyInfo keyInfo)
         {
-            if (!GameActive)
-                return "Game is not active.";
+            if (!GameActive) return "Game is not active.";
+            var inputCmd = _inputHandler.ProcessKeyInput(keyInfo);
+            if (_inMovementMode)
+                return ProcessMovementModeKey(inputCmd);
+            return ProcessGameAction(ConvertKeyToGameAction(inputCmd));
+        }
 
-            var inputCommand = _inputHandler.ProcessKeyInput(keyInfo);
-            
-            if (_inMovementMode)
-            {
-                return ProcessMovementModeKey(inputCommand);
-            }
-            
-            var actionCommand = ConvertKeyToGameAction(inputCommand);
-            return ProcessGameAction(actionCommand);
-        }
-        
-        /// <summary>
-        /// Process game action command (unified handler for both input types)
-        /// </summary>
-        private string ProcessGameAction(GameActionCommand actionCommand)
+        // ─────────────────────────────────────────────────────────────────────
+        // Unified action router
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ProcessGameAction(GameActionCommand cmd)
         {
-            if (_inMovementMode)
-            {
-                return ProcessMovementModeAction(actionCommand);
-            }
-            
-            if (_waitingForDefenseChoice)
-            {
-                return ProcessDefenseChoice(actionCommand);
-            }
-            
-            if (_waitingForEvasionMovement)
-            {
-                return ProcessEvasionMovement(actionCommand);
-            }
-            
-            if (_waitingForMovementTarget)
-            {
-                return ProcessMovementTarget(actionCommand);
-            }
-            
+            if (_inMovementMode)         return ProcessMovementModeAction(cmd);
+            if (_waitingForDefenseChoice) return ProcessDefenseChoice(cmd);
+            if (_waitingForEvasionMovement) return ProcessEvasionMovement(cmd);
+            if (_waitingForMovementTarget)  return ProcessMovementTarget(cmd);
+
             if (!CanPerformAnotherAction())
-            {
-                return "You have used all your actions this turn. Advancing to next turn...\n\n" + 
-                       AdvanceToNextTurn();
-            }
-            
-            return ExecuteGameAction(actionCommand);
+                return "You have used all your actions this turn. Advancing...\n\n" + AdvanceToNextTurn();
+
+            return ExecuteGameAction(cmd);
         }
-        
-        /// <summary>
-        /// Convert InputCommand to GameActionCommand for unified processing
-        /// </summary>
-        private GameActionCommand ConvertKeyToGameAction(InputCommand inputCommand)
+
+        private GameActionCommand ConvertKeyToGameAction(InputCommand inputCmd)
         {
-            return inputCommand.Type switch
+            return inputCmd.Type switch
             {
-                InputType.Movement => new GameActionCommand
-                {
-                    Type = GameActionType.MovementStep,
-                    Direction = inputCommand.Direction,
-                    RawInput = inputCommand.RawInput
-                },
-                InputType.Confirm => new GameActionCommand
-                {
-                    Type = GameActionType.Confirm,
-                    RawInput = inputCommand.RawInput
-                },
-                InputType.Cancel => new GameActionCommand
-                {
-                    Type = GameActionType.Cancel,
-                    RawInput = inputCommand.RawInput
-                },
-                InputType.Reset => new GameActionCommand
-                {
-                    Type = GameActionType.Reset,
-                    RawInput = inputCommand.RawInput
-                },
-                InputType.Help => new GameActionCommand
-                {
-                    Type = GameActionType.Help,
-                    RawInput = inputCommand.RawInput
-                },
-                _ => new GameActionCommand
-                {
-                    Type = GameActionType.Invalid,
-                    RawInput = inputCommand.RawInput
-                }
+                InputType.Movement => new GameActionCommand { Type = GameActionType.MovementStep, Direction = inputCmd.Direction, RawInput = inputCmd.RawInput },
+                InputType.Confirm  => new GameActionCommand { Type = GameActionType.Confirm,      RawInput = inputCmd.RawInput },
+                InputType.Cancel   => new GameActionCommand { Type = GameActionType.Cancel,       RawInput = inputCmd.RawInput },
+                InputType.Reset    => new GameActionCommand { Type = GameActionType.Reset,        RawInput = inputCmd.RawInput },
+                InputType.Help     => new GameActionCommand { Type = GameActionType.Help,         RawInput = inputCmd.RawInput },
+                _                  => new GameActionCommand { Type = GameActionType.Invalid,      RawInput = inputCmd.RawInput }
             };
         }
-        
-        /// <summary>
-        /// Process input during movement mode using InputHandler commands
-        /// </summary>
-        private string ProcessMovementModeAction(GameActionCommand actionCommand)
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Movement mode (WASD)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ProcessMovementModeAction(GameActionCommand cmd)
         {
-            switch (actionCommand.Type)
+            switch (cmd.Type)
             {
                 case GameActionType.MovementStep:
-                    var (deltaX, deltaY) = _inputHandler.GetDirectionDelta(actionCommand.Direction);
-                    return ProcessMovementStep(deltaX, deltaY);
-                    
-                case GameActionType.Confirm:
-                    return ConfirmMovementPath();
-                    
-                case GameActionType.Reset:
-                    return ResetMovementPath();
-                    
-                case GameActionType.Cancel:
-                    return CancelMovement();
-                    
-                case GameActionType.Help:
-                    return GetMovementModeHelp();
-                    
-                default:
-                    return GetMovementModeHelp();
+                    var (dx, dy) = _inputHandler.GetDirectionDelta(cmd.Direction);
+                    return ProcessMovementStep(dx, dy);
+                case GameActionType.Confirm: return ConfirmMovementPath();
+                case GameActionType.Reset:   return ResetMovementPath();
+                case GameActionType.Cancel:  return CancelMovement();
+                default:                     return GetMovementModeHelp();
             }
         }
-        
-        /// <summary>
-        /// Process key input during movement mode for responsive WASD controls
-        /// </summary>
-        private string ProcessMovementModeKey(InputCommand inputCommand)
+
+        private string ProcessMovementModeKey(InputCommand inputCmd)
         {
-            switch (inputCommand.Type)
+            switch (inputCmd.Type)
             {
                 case InputType.Movement:
-                    var (deltaX, deltaY) = _inputHandler.GetDirectionDelta(inputCommand.Direction);
-                    return ProcessMovementStep(deltaX, deltaY);
-                    
-                case InputType.Confirm:
-                    return ConfirmMovementPath();
-                    
-                case InputType.Reset:
-                    return ResetMovementPath();
-                    
-                case InputType.Cancel:
-                    return CancelMovement();
-                    
-                case InputType.Help:
-                    return GetMovementModeHelp();
-                    
-                default:
-                    return GetMovementModeHelp();
+                    var (dx, dy) = _inputHandler.GetDirectionDelta(inputCmd.Direction);
+                    return ProcessMovementStep(dx, dy);
+                case InputType.Confirm: return ConfirmMovementPath();
+                case InputType.Reset:   return ResetMovementPath();
+                case InputType.Cancel:  return CancelMovement();
+                default:                return GetMovementModeHelp();
             }
         }
-        
-        /// <summary>
-        /// Process a single movement step in WASD mode
-        /// </summary>
+
         private string ProcessMovementStep(int deltaX, int deltaY)
         {
-            var character = CurrentActor;
+            var character = _activeMovementResult?.Character ?? CurrentActor;
             var currentPos = _movementPath.Count > 0 ? _movementPath.Last() : _movementStartPosition;
             var newPos = new Position(currentPos.X + deltaX, currentPos.Y + deltaY);
-            
+
             if (_movementPointsUsed >= _activeMovementResult.MaxDistance)
-            {
-                return DrawMovementInterface("No movement points remaining! Use 'enter' to confirm or 'reset' to start over.");
-            }
-            
-            if (!IsValidGridPosition(newPos))
-            {
-                return DrawMovementInterface("Cannot move outside the grid!");
-            }
-            
+                return DrawMovementInterface("No movement points remaining! Press Enter to confirm or R to reset.");
+
+            if (!IsInArenaBounds(newPos))
+                return DrawMovementInterface("Cannot move outside the arena!");
+
             if (_players.Any(p => p != character && p.IsAlive && p.Position.Equals(newPos)))
-            {
                 return DrawMovementInterface("Position occupied by another character!");
-            }
-            
+
             if (_movementPath.Contains(newPos))
-            {
-                return DrawMovementInterface("Cannot move to a position already in your path!");
-            }
-            
+                return DrawMovementInterface("Cannot revisit a position already in your path!");
+
             _movementPath.Add(newPos);
             _movementPointsUsed++;
-            
+
             return DrawMovementInterface($"Moved to ({newPos.X},{newPos.Y})");
         }
-        
+
         /// <summary>
-        /// Confirm the movement path and execute it
-        /// BUG FIX: Capture _movementPointsUsed BEFORE ExitMovementMode() clears it to 0
+        /// BUG FIX: Capture _movementPointsUsed BEFORE ExitMovementMode() clears it to 0.
         /// </summary>
         private string ConfirmMovementPath()
         {
             if (_movementPath == null || _movementPath.Count == 0)
-            {
-                return DrawMovementInterface("No movement path set! Use WASD to move, or 'cancel' to exit movement mode.");
-            }
-            
-            var finalPosition = _movementPath.Last();
+                return DrawMovementInterface("No path set! Use WASD to move, or ESC to cancel.");
+
             var character = _activeMovementResult?.Character ?? CurrentActor;
-            
-            if (character == null)
-                return "Error: No current actor found.";
-            
-            if (_activeMovementResult == null)
-                return "Error: Movement result not found.";
-            
-            // BUG FIX: Capture BEFORE ExitMovementMode() clears _movementPointsUsed to 0
+            if (character == null)     return "Error: No current actor.";
+            if (_activeMovementResult == null) return "Error: Movement result missing.";
+
+            var finalPosition = _movementPath.Last();
+
+            // BUG FIX: capture BEFORE ExitMovementMode() clears _movementPointsUsed
             int pointsUsed = _movementPointsUsed;
-            bool isEvasionMovement = _activeMovementResult.StaminaCost == 0;
-            bool allowsSecondAction = _activeMovementResult.AllowsSecondAction && !isEvasionMovement;
-            
-            // Execute the movement
+            bool isEvasion = _activeMovementResult.StaminaCost == 0;
+            bool allowsSecond = _activeMovementResult.AllowsSecondAction && !isEvasion;
+
             character.Position = finalPosition;
-            
-            if (!isEvasionMovement)
-                character.UseStamina(_activeMovementResult.StaminaCost);
-            
-            ExitMovementMode(); // This clears _movementPointsUsed — must happen AFTER capturing pointsUsed
-            
-            if (isEvasionMovement)
+            if (!isEvasion) character.UseStamina(_activeMovementResult.StaminaCost);
+
+            ExitMovementMode(); // clears _movementPointsUsed — must be AFTER capture above
+
+            _gridDisplay.UpdateCharacters(_players);
+
+            if (isEvasion)
             {
-                var result = $"{character.Name} moves to ({finalPosition.X},{finalPosition.Y}) after successful evasion.\n\n";
-                return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
+                return CreateDisplay(character,
+                    $"{character.Name} moves to ({finalPosition.X},{finalPosition.Y}) after evasion.\n")
+                    + AdvanceToNextTurn();
             }
-            else
+
+            var result = $"{character.Name} moved to ({finalPosition.X},{finalPosition.Y}) " +
+                         $"using {pointsUsed} movement points.\n";
+
+            if (allowsSecond)
             {
-                var result = $"{character.Name} moved to ({finalPosition.X},{finalPosition.Y}) using {pointsUsed} movement points.\n";
-                
-                if (allowsSecondAction)
+                bool continues = UseAction(allowsSecondAction: true);
+                if (continues)
                 {
-                    bool turnContinues = UseAction(allowsSecondAction: true);
-                    
-                    if (turnContinues)
-                    {
-                        result += "Used 1 stamina, can still act once more!\n\n";
-                        result += GetContinuedTurnInstructions();
-                        return _gridDisplay.CreateFullDisplay(result);
-                    }
-                    else
-                    {
-                        result += "Used second action, turn ends.\n\n";
-                        return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                    }
+                    result += "Used 1 stamina, can still act once more!\n\n" + GetContinuedTurnInstructions();
+                    return CreateDisplay(character, result);
                 }
-                else
-                {
-                    UseAction(allowsSecondAction: false);
-                    result += "Used 1 stamina, turn ends.\n\n";
-                    return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                }
+                result += "Used second action, turn ends.\n";
+                return CreateDisplay(character, result) + AdvanceToNextTurn();
             }
+
+            UseAction(allowsSecondAction: false);
+            result += "Used 1 stamina, turn ends.\n";
+            return CreateDisplay(character, result) + AdvanceToNextTurn();
         }
-        
-        /// <summary>
-        /// Reset the current movement path
-        /// </summary>
+
         private string ResetMovementPath()
         {
             _movementPath.Clear();
             _movementPointsUsed = 0;
-            return DrawMovementInterface("Movement path reset!");
+            return DrawMovementInterface("Path reset!");
         }
-        
-        /// <summary>
-        /// Cancel movement mode and return to normal actions
-        /// </summary>
+
         private string CancelMovement()
         {
-            ExitMovementMode();
-            
             var character = CurrentActor;
-            return _gridDisplay.CreateFullDisplay(
-                $"{character.Name} cancels movement.\n\n" +
-                $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n" +
-                GetContinuedTurnInstructions()
-            );
+            ExitMovementMode();
+            return CreateDisplay(character,
+                $"{character.Name} cancels movement.\n" +
+                $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n\n" +
+                GetContinuedTurnInstructions());
         }
-        
-        /// <summary>
-        /// Exit movement mode and clean up state
-        /// </summary>
+
         private void ExitMovementMode()
         {
-            _inMovementMode = false;
+            _inMovementMode      = false;
             _movementPath.Clear();
-            _movementPointsUsed = 0;
+            _movementPointsUsed  = 0;
             _activeMovementResult = null;
             _movementStartPosition = null;
         }
-        
-        /// <summary>
-        /// Draw the movement interface with path and remaining points - WITH LIVE GRID PREVIEW
-        /// </summary>
-        private string DrawMovementInterface(string message = "")
-        {
-            var character = _activeMovementResult?.Character ?? CurrentActor;
-            if (character == null || _activeMovementResult == null)
-                return "Movement mode error - please restart movement.";
-            
-            var sb = new System.Text.StringBuilder();
-            
-            sb.AppendLine("╔═══════════════════ RPG COMBAT GRID ═══════════════════╗");
-            sb.AppendLine();
-            sb.Append(DrawGridWithMovementPreview(character));
-            sb.AppendLine();
-            sb.AppendLine("=== COMBAT STATUS ===");
-            
-            foreach (var player in _players.Where(p => p != character).OrderBy(c => c.Name))
-            {
-                char symbol = char.ToUpper(player.Name[0]);
-                string counter = player.Counter.IsReady ? " [COUNTER READY!]" : 
-                               $" (Counter: {player.Counter.Current}/6)";
-                               
-                sb.AppendLine($"[{symbol}] {player.Name}: " +
-                             $"HP {player.CurrentHealth}/{player.MaxHealth}, " +
-                             $"SP {player.CurrentStamina}/{player.MaxStamina}" +
-                             $"{counter}");
-                             
-                sb.AppendLine($"    Position: ({player.Position.X},{player.Position.Y}) " +
-                             $"ATK:{player.AttackPoints} DEF:{player.DefensePoints} MOV:{player.MovementPoints}");
-            }
-            
-            sb.AppendLine();
-            sb.AppendLine("=== MOVEMENT MODE ===");
-            sb.AppendLine($"🎮 {character.Name} - Movement Points: {_movementPointsUsed}/{_activeMovementResult.MaxDistance}");
-            sb.AppendLine($"📍 Starting Position: {_movementStartPosition}");
-            
-            if (_movementPath != null && _movementPath.Count > 0)
-            {
-                var currentPos = _movementPath.Last();
-                sb.AppendLine($"📍 Current Preview: ({currentPos.X},{currentPos.Y})");
-                sb.AppendLine($"🛤️  Path: {_movementStartPosition} → {string.Join(" → ", _movementPath)}");
-            }
-            else
-            {
-                sb.AppendLine($"📍 Current Preview: {character.Position} (no movement yet)");
-            }
-            
-            sb.AppendLine();
-            sb.AppendLine("🎮 Controls:");
-            sb.AppendLine("  [W] ↑ Up      [S] ↓ Down");
-            sb.AppendLine("  [A] ← Left    [D] → Right");
-            sb.AppendLine("  [Enter] Confirm path");
-            sb.AppendLine("  [R] Reset path    [ESC] Cancel");
-            
-            if (!string.IsNullOrEmpty(message))
-            {
-                sb.AppendLine();
-                sb.AppendLine($">>> {message}");
-            }
-            
-            sb.AppendLine("╚══════════════════════════════════════════════════════╝");
-            
-            return sb.ToString();
-        }
-        
-        /// <summary>
-        /// Draw grid with live movement path preview
-        /// </summary>
-        private string DrawGridWithMovementPreview(Character movingCharacter)
-        {
-            var sb = new System.Text.StringBuilder();
-            
-            for (int y = 7; y >= 0; y--)
-            {
-                for (int x = 0; x < 8; x++)
-                {
-                    char displayChar = GetCharacterAtPositionWithPreview(x, y, movingCharacter);
-                    sb.Append(displayChar);
-                    
-                    if (x < 7)
-                        sb.Append("   ");
-                }
-                sb.AppendLine();
 
-                if (y > 0)
-                    sb.AppendLine();
-            }
-            
-            return sb.ToString();
-        }
-        
-        /// <summary>
-        /// Get character display with movement path preview
-        /// </summary>
-        private char GetCharacterAtPositionWithPreview(int x, int y, Character movingCharacter)
+        private string EnterMovementMode(MovementType moveType)
         {
-            var pos = new Position(x, y);
-            
-            if (_movementPath != null && _movementPath.Count > 0)
-            {
-                var finalPos = _movementPath.Last();
-                if (finalPos.X == x && finalPos.Y == y)
-                    return char.ToUpper(movingCharacter.Name[0]);
-                
-                var pathPositions = _movementPath.Take(_movementPath.Count - 1);
-                if (pathPositions.Any(p => p.X == x && p.Y == y))
-                    return '·';
-            }
-            else
-            {
-                if (movingCharacter.Position.X == x && movingCharacter.Position.Y == y)
-                    return char.ToUpper(movingCharacter.Name[0]);
-            }
-            
-            var otherCharacter = _players.FirstOrDefault(c => 
-                c != movingCharacter && c.IsAlive && c.Position.X == x && c.Position.Y == y);
-            
-            if (otherCharacter != null)
-                return char.ToUpper(otherCharacter.Name[0]);
-            
-            if (_movementPath != null && _movementPath.Count > 0 && 
-                movingCharacter.Position.X == x && movingCharacter.Position.Y == y)
-                return '○';
-            
-            return '.';
+            var character = CurrentActor;
+            _activeMovementResult  = _movementSystem.CalculateMovement(character, moveType);
+            _movementStartPosition = new Position(character.Position.X, character.Position.Y);
+            _movementPath.Clear();
+            _movementPointsUsed = 0;
+            _inMovementMode = true;
+
+            string typeStr  = moveType == MovementType.Simple ? "Move" : "Dash";
+            string actionInfo = moveType == MovementType.Simple ? "(allows second action)" : "(ends turn)";
+            string header = $"{character.Name} {typeStr}: {_activeMovementResult.MoveRoll} + " +
+                            $"{character.MovementPoints} MOV = {_activeMovementResult.MaxDistance} points {actionInfo}\n\n";
+
+            return header + DrawMovementInterface("Use WASD to move step by step!");
         }
-        
-        /// <summary>
-        /// Get help text for movement mode
-        /// </summary>
-        private string GetMovementModeHelp()
-        {
-            return DrawMovementInterface("Use WASD or arrow keys to move. Type 'enter' to confirm, 'reset' to clear path, or 'esc' to cancel.");
-        }
-        
-        /// <summary>
-        /// Set up WASD movement mode for evasion movement after successful dodge
-        /// </summary>
+
         private void SetupEvasionMovementMode(Character character, int maxDistance)
         {
             _activeMovementResult = new MovementResult
             {
-                Character = character,
-                MovementType = MovementType.Simple,
-                MaxDistance = maxDistance,
-                StaminaCost = 0,
+                Character        = character,
+                MovementType     = MovementType.Simple,
+                MaxDistance      = maxDistance,
+                StaminaCost      = 0,
                 AllowsSecondAction = false,
-                ValidPositions = GetPositionsWithinDistance(character.Position, maxDistance, character)
+                ValidPositions   = new List<Position>()
             };
-            
             _movementStartPosition = new Position(character.Position.X, character.Position.Y);
             _movementPath.Clear();
             _movementPointsUsed = 0;
             _inMovementMode = true;
         }
-        
-        /// <summary>
-        /// Get all valid positions within evasion distance
-        /// </summary>
-        private List<Position> GetPositionsWithinDistance(Position start, int maxDistance, Character movingCharacter)
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Movement interface display (delegates to GridDisplay viewport)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string DrawMovementInterface(string message = "")
         {
-            var positions = new List<Position>();
-            
-            for (int x = start.X - maxDistance; x <= start.X + maxDistance; x++)
+            var character = _activeMovementResult?.Character ?? CurrentActor;
+            if (character == null || _activeMovementResult == null)
+                return "Movement mode error — please restart movement.";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("╔═══════════════════ RPG COMBAT GRID ═══════════════════╗");
+            sb.AppendLine();
+
+            // Use the viewport-aware drawing from GridDisplay
+            sb.Append(_gridDisplay.DrawViewportWithMovementPreview(
+                character, _movementStartPosition, _movementPath));
+
+            sb.AppendLine();
+            sb.AppendLine("=== COMBAT STATUS ===");
+            foreach (var p in _players.Where(p => p != character).OrderBy(c => c.Name))
             {
-                for (int y = start.Y - maxDistance; y <= start.Y + maxDistance; y++)
-                {
-                    if (x == start.X && y == start.Y) continue;
-                    
-                    var newPos = new Position(x, y);
-                    var distance = Math.Abs(start.X - newPos.X) + Math.Abs(start.Y - newPos.Y);
-                    
-                    if (distance <= maxDistance && IsValidGridPosition(newPos))
-                    {
-                        if (!_players.Any(p => p != movingCharacter && p.IsAlive && p.Position.Equals(newPos)))
-                            positions.Add(newPos);
-                    }
-                }
+                char sym = char.ToUpper(p.Name[0]);
+                string counter = p.Counter.IsReady ? " [COUNTER READY!]" : $" (Counter: {p.Counter.Current}/{p.Counter.Maximum})";
+                sb.AppendLine($"[{sym}] {p.Name}: HP {p.CurrentHealth}/{p.MaxHealth}, SP {p.CurrentStamina}/{p.MaxStamina}{counter}");
+                sb.AppendLine($"    Position: ({p.Position.X},{p.Position.Y}) ATK:{p.AttackPoints} DEF:{p.DefensePoints} MOV:{p.MovementPoints}");
             }
-            
-            return positions;
-        }
-        
-        /// <summary>
-        /// Check if position is within grid bounds
-        /// </summary>
-        private bool IsValidGridPosition(Position pos)
-        {
-            return pos.X >= 0 && pos.X < 8 && pos.Y >= 0 && pos.Y < 8;
-        }
-        
-        /// <summary>
-        /// Execute a game action command
-        /// </summary>
-        private string ExecuteGameAction(GameActionCommand actionCommand)
-        {
-            var result = "";
-            
-            switch (actionCommand.Type)
+
+            sb.AppendLine();
+            sb.AppendLine("=== MOVEMENT MODE ===");
+            sb.AppendLine($"🎮 {character.Name} — Points used: {_movementPointsUsed}/{_activeMovementResult.MaxDistance}");
+            sb.AppendLine($"📍 Start: {_movementStartPosition}");
+
+            if (_movementPath != null && _movementPath.Count > 0)
             {
-                case GameActionType.Attack:
-                    var target = actionCommand.Target != null ? FindCharacterByLetter(actionCommand.Target[0]) : null;
-                    result = HandleAttackAction(target);
-                    break;
-                    
-                case GameActionType.EnterMovementMode:
-                    result = HandleMoveAction();
-                    break;
-                    
-                case GameActionType.MoveToPosition:
-                    result = HandleMoveAction(actionCommand.TargetPosition);
-                    break;
-                    
-                case GameActionType.EnterDashMode:
-                    result = HandleDashAction();
-                    break;
-                    
-                case GameActionType.DashToPosition:
-                    result = HandleDashAction(actionCommand.TargetPosition);
-                    break;
-                    
-                case GameActionType.Rest:
-                    result = HandleRestAction();
-                    break;
-                    
-                case GameActionType.Defend:
-                    result = HandleDefendAction();
-                    break;
-                    
-                case GameActionType.Help:
-                    result = GetHelpText();
-                    break;
-                    
-                case GameActionType.Quit:
-                    result = "Game ended by player.";
-                    break;
-                    
-                default:
-                    result = GetHelpText();
-                    break;
-            }
-            
-            _gridDisplay.UpdateCharacters(_players);
-            return result;
-        }
-        
-        /// <summary>
-        /// Enhanced movement action - supports both WASD mode and direct coordinates
-        /// </summary>
-        private string HandleMoveAction(Position targetPosition = null)
-        {
-            if (targetPosition != null)
-                return HandleDirectMovement(targetPosition, MovementType.Simple);
-            else
-                return EnterMovementMode(MovementType.Simple);
-        }
-        
-        /// <summary>
-        /// Enhanced dash action - supports both WASD mode and direct coordinates
-        /// </summary>
-        private string HandleDashAction(Position targetPosition = null)
-        {
-            if (targetPosition != null)
-                return HandleDirectMovement(targetPosition, MovementType.Dash);
-            else
-                return EnterMovementMode(MovementType.Dash);
-        }
-        
-        /// <summary>
-        /// Enter movement mode for WASD control
-        /// </summary>
-        private string EnterMovementMode(MovementType moveType)
-        {
-            var character = CurrentActor;
-            
-            _activeMovementResult = _movementSystem.CalculateMovement(character, moveType);
-            _movementStartPosition = new Position(character.Position.X, character.Position.Y);
-            _movementPath.Clear();
-            _movementPointsUsed = 0;
-            _inMovementMode = true;
-            
-            string moveTypeStr = moveType == MovementType.Simple ? "Move" : "Dash";
-            string actionInfo = moveType == MovementType.Simple ? " (allows second action)" : " (ends turn)";
-            
-            var result = $"{character.Name} {moveTypeStr}: {_activeMovementResult.MoveRoll} + {character.MovementPoints} MOV = {_activeMovementResult.MaxDistance} movement points{actionInfo}\n\n";
-            
-            return result + DrawMovementInterface("Use WASD to move step by step!");
-        }
-        
-        /// <summary>
-        /// Legacy direct movement support
-        /// </summary>
-        private string HandleDirectMovement(Position targetPosition, MovementType moveType)
-        {
-            var character = CurrentActor;
-            var moveResult = _movementSystem.CalculateMovement(character, moveType);
-            
-            string moveTypeStr = moveType == MovementType.Simple ? "moves" : "dashes";
-            var result = $"{character.Name} {moveTypeStr}: {moveResult.MoveRoll} + {character.MovementPoints} MOV = {moveResult.MaxDistance} movement points\n\n";
-            
-            if (_movementSystem.ExecuteMovement(moveResult, targetPosition))
-            {
-                result += $"{character.Name} {moveTypeStr} to ({targetPosition.X},{targetPosition.Y})\n";
-                
-                if (moveType == MovementType.Simple)
-                {
-                    bool turnContinues = UseAction(allowsSecondAction: true);
-                    
-                    if (turnContinues)
-                    {
-                        result += "Used 1 stamina, can still act once more!\n\n";
-                        result += GetContinuedTurnInstructions();
-                        return _gridDisplay.CreateFullDisplay(result);
-                    }
-                    else
-                    {
-                        result += "Used second action, turn ends.\n\n";
-                        return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                    }
-                }
-                else
-                {
-                    UseAction(allowsSecondAction: false);
-                    result += "Used 1 stamina, turn ends.\n\n";
-                    return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                }
+                sb.AppendLine($"📍 Preview: {_movementPath.Last()}");
+                sb.AppendLine($"🛤️  Path: {_movementStartPosition} → {string.Join(" → ", _movementPath)}");
             }
             else
             {
-                return _gridDisplay.CreateFullDisplay(
-                    result + "Invalid position! Use WASD mode by typing 'move' or 'dash' without coordinates."
-                );
+                sb.AppendLine($"📍 Preview: {character.Position} (no movement yet)");
             }
+
+            sb.AppendLine();
+            sb.AppendLine("🎮 Controls: [W/↑] Up  [S/↓] Down  [A/←] Left  [D/→] Right");
+            sb.AppendLine("             [Enter] Confirm  [R] Reset  [ESC] Cancel");
+
+            if (!string.IsNullOrEmpty(message))
+                sb.AppendLine($"\n>>> {message}");
+
+            sb.AppendLine("╚══════════════════════════════════════════════════════╝");
+            return sb.ToString();
         }
-        
-        /// <summary>
-        /// Get instructions for continued turns (second action)
-        /// </summary>
-        private string GetContinuedTurnInstructions()
-        {
-            return $"{CurrentActor.Name}'s turn continues...\n" +
-                   $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n" +
-                   "Available actions:\n" +
-                   "  'attack [letter]' - Attack adjacent character\n" +
-                   "  'move' - Move again (1d6) using WASD\n" +
-                   "  'dash' - Dash move (2d6) using WASD, ends turn\n" +
-                   "  'rest' - Recover stamina\n" +
-                   "  'defend' - Take defensive stance (costs 1 stamina)";
-        }
-        
-        /// <summary>
-        /// Advance to the next turn and reset action tracking
-        /// </summary>
+
+        private string GetMovementModeHelp()
+            => DrawMovementInterface("WASD / arrow keys to move. Enter to confirm, R to reset, ESC to cancel.");
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Turn advancement
+        // ─────────────────────────────────────────────────────────────────────
+
         private string AdvanceToNextTurn()
         {
-            if (_inMovementMode)
-                ExitMovementMode();
-            
-            // Safety: ensure no character is stuck at 0 stamina before advancing
+            if (_inMovementMode) ExitMovementMode();
+
+            // Safety: ensure no character is stuck at 0 stamina before NextTurn loop
             foreach (var p in _players.Where(p => p.IsAlive && p.CurrentStamina == 0))
-                p.RestoreStamina(5);
-            
+                p.RestoreStamina(GameConfig.Current.Turns.ForcedRestRestore);
+
             var nextTurn = _turnManager.NextTurn();
             ResetActionTracking();
             _gridDisplay.UpdateCharacters(_players);
-            
-            return _gridDisplay.CreateFullDisplay(
-                $"{nextTurn.Message}\n" +
-                GetTurnInstructions(nextTurn)
+
+            return CreateDisplay(
+                nextTurn.CurrentActor,
+                $"{nextTurn.Message}\n" + GetTurnInstructions(nextTurn)
             );
         }
-        
-        /// <summary>
-        /// Process defender's choice using InputHandler
-        /// </summary>
-        private string ProcessDefenseChoice(GameActionCommand actionCommand)
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Defense choice
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ProcessDefenseChoice(GameActionCommand cmd)
         {
-            RPGGame.Combat.DefenseChoice? choice = null;
-            
-            switch (actionCommand.Type)
+            RPGGame.Combat.DefenseChoice? choice = cmd.Type switch
             {
-                case GameActionType.Defend:
-                    choice = RPGGame.Combat.DefenseChoice.Defend;
-                    break;
-                case GameActionType.EnterMovementMode:
-                    choice = RPGGame.Combat.DefenseChoice.Move;
-                    break;
-                case GameActionType.DefenseTakeDamage:
-                    choice = RPGGame.Combat.DefenseChoice.TakeDamage;
-                    break;
-                default:
-                    if (_inputHandler.IsDefenseChoice(actionCommand.RawInput))
-                        choice = _inputHandler.ParseDefenseChoice(actionCommand.RawInput);
-                    break;
-            }
-            
+                GameActionType.Defend           => RPGGame.Combat.DefenseChoice.Defend,
+                GameActionType.EnterMovementMode => RPGGame.Combat.DefenseChoice.Move,
+                GameActionType.DefenseTakeDamage => RPGGame.Combat.DefenseChoice.TakeDamage,
+                _ => _inputHandler.IsDefenseChoice(cmd.RawInput)
+                         ? _inputHandler.ParseDefenseChoice(cmd.RawInput)
+                         : null
+            };
+
             if (choice == null)
                 return "Invalid defense choice. Use: 'defend', 'move', or 'take'";
-            
+
             var defenseResult = _combatSystem.ResolveDefense(_defendingCharacter, _pendingAttack, choice.Value);
-            var resultMessage = $"{_pendingAttack.Message}\n{defenseResult.Message}\n";
-            
+            var msg = $"{_pendingAttack.Message}\n{defenseResult.Message}\n";
+
             UseAction(allowsSecondAction: false);
-            
+
             if (defenseResult.DefenseChoice == RPGGame.Combat.DefenseChoice.Move && defenseResult.CanMove)
             {
-                _waitingForEvasionMovement = false;
-                _pendingEvasionResult = null;
-                _evadingCharacter = null;
-                
                 SetupEvasionMovementMode(_defendingCharacter, defenseResult.MovementDistance);
-                
-                resultMessage += $"\n{_defendingCharacter.Name} successfully evaded and can now move up to {defenseResult.MovementDistance} spaces!\n";
-                resultMessage += "🎮 Entering WASD evasion movement mode...\n\n";
-                
+                msg += $"\n{_defendingCharacter.Name} evaded! Can move up to {defenseResult.MovementDistance} tiles.\n" +
+                       "🎮 Entering WASD evasion movement mode...\n\n";
+
                 _waitingForDefenseChoice = false;
-                _pendingAttack = null;
-                _defendingCharacter = null;
-                
-                return resultMessage + DrawMovementInterface("Use WASD to move after successful evasion!");
+                _pendingAttack           = null;
+                _defendingCharacter      = null;
+                return msg + DrawMovementInterface("Use WASD to reposition after evasion!");
             }
-            
+
             if (defenseResult.CounterReady)
-            {
-                resultMessage += $"\n⚡ {_defendingCharacter.Name}'s counter gauge is READY! " +
-                               "They can use a counter attack on their turn!\n";
-            }
-            
+                msg += $"\n⚡ {_defendingCharacter.Name}'s counter gauge is READY!\n";
+
             _waitingForDefenseChoice = false;
-            _pendingAttack = null;
-            _defendingCharacter = null;
-            
-            // Check win condition
-            if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
+            _pendingAttack           = null;
+            _defendingCharacter      = null;
+
+            _gridDisplay.UpdateCharacters(_players);
+
+            if (_players.Count(p => p.IsAlive) <= 1)
             {
                 var winner = _players.FirstOrDefault(p => p.IsAlive);
-                return _gridDisplay.CreateFullDisplay(
-                    resultMessage + $"\n🎉 GAME OVER! {winner?.Name} wins!"
-                );
+                return CreateDisplay(winner, msg + $"\n🎉 GAME OVER! {winner?.Name} wins!");
             }
-            
-            return _gridDisplay.CreateFullDisplay(resultMessage + "\n") + AdvanceToNextTurn();
+
+            return CreateDisplay(CurrentActor, msg + "\n") + AdvanceToNextTurn();
         }
-        
-        /// <summary>
-        /// Handle movement after successful evasion using InputHandler
-        /// </summary>
-        private string ProcessEvasionMovement(GameActionCommand actionCommand)
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Evasion movement (legacy coordinate path — still supported)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ProcessEvasionMovement(GameActionCommand cmd)
         {
-            if (actionCommand.Type == GameActionType.Coordinates)
+            if (cmd.Type == GameActionType.Coordinates)
             {
-                var targetPosition = actionCommand.TargetPosition;
-                
-                var validPositions = _gridDisplay.GetValidMovePositions(_evadingCharacter);
-                var filteredPositions = validPositions.Where(pos => {
-                    int distance = Math.Abs(_evadingCharacter.Position.X - pos.X) + Math.Abs(_evadingCharacter.Position.Y - pos.Y);
-                    return distance <= _pendingEvasionResult.MovementDistance;
-                }).ToList();
-                
-                if (filteredPositions.Any(p => p.Equals(targetPosition)))
+                var pos = cmd.TargetPosition;
+                int dist = Math.Abs(_evadingCharacter.Position.X - pos.X) +
+                           Math.Abs(_evadingCharacter.Position.Y - pos.Y);
+
+                if (dist <= _pendingEvasionResult.MovementDistance && IsInArenaBounds(pos) &&
+                    !_players.Any(p => p != _evadingCharacter && p.IsAlive && p.Position.Equals(pos)))
                 {
-                    var characterName = _evadingCharacter.Name;
-                    _evadingCharacter.Position = targetPosition;
-                    
+                    var name = _evadingCharacter.Name;
+                    _evadingCharacter.Position = pos;
                     _waitingForEvasionMovement = false;
                     _pendingEvasionResult = null;
                     _evadingCharacter = null;
-                    
-                    return _gridDisplay.CreateFullDisplay(
-                        $"{characterName} moves to ({targetPosition.X},{targetPosition.Y}) after evasion.\n\n"
-                    ) + AdvanceToNextTurn();
+                    return CreateDisplay(CurrentActor,
+                        $"{name} moves to ({pos.X},{pos.Y}) after evasion.\n") + AdvanceToNextTurn();
                 }
-                else
-                {
-                    return "Invalid position! Choose from the available evasion positions.";
-                }
+                return "Invalid position! Choose a tile within evasion range.";
             }
-            else if (actionCommand.Type == GameActionType.Skip)
+
+            if (cmd.Type == GameActionType.Skip)
             {
-                var characterName = _evadingCharacter.Name;
+                var name = _evadingCharacter.Name;
                 _waitingForEvasionMovement = false;
                 _pendingEvasionResult = null;
                 _evadingCharacter = null;
-                
-                return _gridDisplay.CreateFullDisplay(
-                    $"{characterName} skips evasion movement.\n\n"
-                ) + AdvanceToNextTurn();
+                return CreateDisplay(CurrentActor, $"{name} skips evasion movement.\n") + AdvanceToNextTurn();
             }
-            else
-            {
-                return "Enter coordinates as 'x y' (e.g., '7 8') or type 'skip' to continue without moving.";
-            }
+
+            return "Enter coordinates as 'x y' or type 'skip' to skip repositioning.";
         }
-        
-        /// <summary>
-        /// Handle movement target selection using InputHandler
-        /// </summary>
-        private string ProcessMovementTarget(GameActionCommand actionCommand)
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Legacy movement target (direct coordinates)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ProcessMovementTarget(GameActionCommand cmd)
         {
-            if (actionCommand.Type == GameActionType.Coordinates)
+            if (cmd.Type != GameActionType.Coordinates)
+                return "Enter coordinates as 'x y', or type 'move' to use WASD mode instead.";
+
+            var pos = cmd.TargetPosition;
+            if (_movementSystem.ExecuteMovement(_pendingMovement, pos))
             {
-                var targetPosition = actionCommand.TargetPosition;
-                
-                if (_movementSystem.ExecuteMovement(_pendingMovement, targetPosition))
+                var result = $"{_pendingMovement.Character.Name} moved to ({pos.X},{pos.Y})\n";
+                _waitingForMovementTarget = false;
+
+                if (_pendingMovement.AllowsSecondAction)
                 {
-                    var result = $"{_pendingMovement.Character.Name} moved to ({targetPosition.X},{targetPosition.Y})\n";
-                    
-                    _waitingForMovementTarget = false;
-                    
-                    if (_pendingMovement.AllowsSecondAction)
-                    {
-                        bool turnContinues = UseAction(allowsSecondAction: true);
-                        
-                        if (turnContinues)
-                        {
-                            result += "Used 1 stamina, can still act once more!\n\n";
-                            result += GetContinuedTurnInstructions();
-                            _pendingMovement = null;
-                            return _gridDisplay.CreateFullDisplay(result);
-                        }
-                        else
-                        {
-                            result += "Turn ends.\n\n";
-                            _pendingMovement = null;
-                            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                        }
-                    }
-                    else
-                    {
-                        UseAction(allowsSecondAction: false);
-                        result += "Used 1 stamina, turn ends.\n\n";
-                        _pendingMovement = null;
-                        return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
-                    }
+                    bool continues = UseAction(allowsSecondAction: true);
+                    _pendingMovement = null;
+                    if (continues)
+                        return CreateDisplay(CurrentActor, result + "Can still act once more!\n\n" + GetContinuedTurnInstructions());
+                    return CreateDisplay(CurrentActor, result) + AdvanceToNextTurn();
                 }
-                else
-                {
-                    return _gridDisplay.CreateFullDisplay(
-                        "Invalid position! Choose a position within your movement range.\n" +
-                        GetMovementOptions(_pendingMovement)
-                    );
-                }
+
+                UseAction(allowsSecondAction: false);
+                _pendingMovement = null;
+                return CreateDisplay(CurrentActor, result) + AdvanceToNextTurn();
             }
-            else
-            {
-                return "Please enter coordinates as 'x y' (e.g., '5 7'), or use the new WASD movement mode by typing just 'move' or 'dash'!";
-            }
+
+            return CreateDisplay(CurrentActor, "Invalid position! Choose within movement range.");
         }
-        
-        /// <summary>
-        /// Handle attack action with range checking
-        /// </summary>
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Action dispatch
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string ExecuteGameAction(GameActionCommand cmd)
+        {
+            string result = cmd.Type switch
+            {
+                GameActionType.Attack =>
+                    HandleAttackAction(cmd.Target != null ? FindCharacterByLetter(cmd.Target[0]) : null),
+                GameActionType.EnterMovementMode => HandleMoveAction(),
+                GameActionType.MoveToPosition    => HandleMoveAction(cmd.TargetPosition),
+                GameActionType.EnterDashMode     => HandleDashAction(),
+                GameActionType.DashToPosition    => HandleDashAction(cmd.TargetPosition),
+                GameActionType.Rest              => HandleRestAction(),
+                GameActionType.Defend            => HandleDefendAction(),
+                GameActionType.Help              => GetHelpText(),
+                GameActionType.Quit              => "Game ended by player.",
+                _                                => GetHelpText()
+            };
+
+            _gridDisplay.UpdateCharacters(_players);
+            return result;
+        }
+
+        private string HandleMoveAction(Position target = null)
+            => target != null ? HandleDirectMovement(target, MovementType.Simple) : EnterMovementMode(MovementType.Simple);
+
+        private string HandleDashAction(Position target = null)
+            => target != null ? HandleDirectMovement(target, MovementType.Dash) : EnterMovementMode(MovementType.Dash);
+
+        private string HandleDirectMovement(Position targetPos, MovementType moveType)
+        {
+            var character = CurrentActor;
+            var moveResult = _movementSystem.CalculateMovement(character, moveType);
+            string typeStr = moveType == MovementType.Simple ? "moves" : "dashes";
+            var result = $"{character.Name} {typeStr}: {moveResult.MoveRoll} + {character.MovementPoints} MOV = {moveResult.MaxDistance} points\n\n";
+
+            if (_movementSystem.ExecuteMovement(moveResult, targetPos))
+            {
+                result += $"{character.Name} {typeStr} to ({targetPos.X},{targetPos.Y})\n";
+                _gridDisplay.UpdateCharacters(_players);
+
+                if (moveType == MovementType.Simple)
+                {
+                    bool continues = UseAction(allowsSecondAction: true);
+                    if (continues)
+                        return CreateDisplay(character, result + "Can still act once more!\n\n" + GetContinuedTurnInstructions());
+                    return CreateDisplay(character, result) + AdvanceToNextTurn();
+                }
+                UseAction(allowsSecondAction: false);
+                return CreateDisplay(character, result) + AdvanceToNextTurn();
+            }
+
+            return CreateDisplay(character, result + "Invalid position! Use 'move' for WASD mode.");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Individual actions
+        // ─────────────────────────────────────────────────────────────────────
+
         private string HandleAttackAction(Character target)
         {
             var attacker = CurrentActor;
-            
-            if (attacker == null)
-                return _gridDisplay.CreateFullDisplay("No current actor found!");
-            
+            if (attacker == null) return CreateDisplay(null, "No current actor found!");
+
             if (target == null)
             {
                 var validTargets = _gridDisplay.GetCharactersInAttackRange(attacker);
                 if (!validTargets.Any())
-                {
-                    return _gridDisplay.CreateFullDisplay(
-                        "No valid targets in range!\n" +
-                        "Move closer to attack. Use 'move' (WASD mode) or 'dash' to reposition."
-                    );
-                }
-                
-                return _gridDisplay.CreateFullDisplay(
-                    "Choose a target to attack:\n" +
+                    return CreateDisplay(attacker,
+                        "No valid targets in range!\nMove closer to attack.");
+
+                return CreateDisplay(attacker,
+                    "Choose a target:\n" +
                     _gridDisplay.DrawAttackRange(attacker) +
-                    "Use 'attack [character letter]' (e.g., 'attack B')"
-                );
+                    "Use 'attack [letter]' (e.g., 'attack B')");
             }
-            
+
             if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
-            {
-                return _gridDisplay.CreateFullDisplay(
-                    $"{target.Name} is not in attack range! You must be adjacent (including diagonal).\n" +
+                return CreateDisplay(attacker,
+                    $"{target.Name} is not adjacent!\n" +
                     _gridDisplay.DrawAttackRange(attacker) +
-                    $"\nDebug: {attacker.Name} at ({attacker.Position.X},{attacker.Position.Y}) " +
-                    $"trying to attack {target.Name} at ({target.Position.X},{target.Position.Y})"
-                );
-            }
-            
+                    $"\n{attacker.Name} @ ({attacker.Position.X},{attacker.Position.Y}) → " +
+                    $"{target.Name} @ ({target.Position.X},{target.Position.Y})");
+
             var attackResult = _combatSystem.ExecuteAttack(attacker, target);
-            
             if (!attackResult.Success)
-                return _gridDisplay.CreateFullDisplay(attackResult.Message);
-            
+                return CreateDisplay(attacker, attackResult.Message);
+
             // Counter attack turns bypass defense
-            if (_turnManager.CurrentActor != null && 
-                _turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
+            if (_turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
             {
                 var counterResult = _combatSystem.ExecuteCounterAttack(attacker, target);
-                
-                if (!_turnManager.CurrentActor.IsAlive || _players.Count(p => p.IsAlive) <= 1)
+                _gridDisplay.UpdateCharacters(_players);
+
+                if (_players.Count(p => p.IsAlive) <= 1)
                 {
                     var winner = _players.FirstOrDefault(p => p.IsAlive);
-                    return _gridDisplay.CreateFullDisplay(
-                        counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!"
-                    );
+                    return CreateDisplay(winner, counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!");
                 }
-                
-                return _gridDisplay.CreateFullDisplay(counterResult.Message + "\n") + AdvanceToNextTurn();
+                return CreateDisplay(attacker, counterResult.Message + "\n") + AdvanceToNextTurn();
             }
-            
-            // Regular attack - wait for defense choice
-            _pendingAttack = attackResult;
-            _defendingCharacter = target;
+
+            // Regular attack — wait for defense response
+            _pendingAttack           = attackResult;
+            _defendingCharacter      = target;
             _waitingForDefenseChoice = true;
-            
-            return _gridDisplay.CreateFullDisplay(
+
+            return CreateDisplay(attacker,
                 $"{attackResult.Message}\n\n" +
                 $"{target.Name}, choose your response:\n" +
-                "  'defend' - Spend 2 stamina, roll 2d6+DEF, build counter on over-defense\n" +
-                "  'move' - Spend 1 stamina, roll 2d6+MOV evasion vs attack\n" +
-                "  'take' - Save stamina, take full damage\n" +
-                $"\nTarget has {target.CurrentStamina} stamina available."
-            );
+                "  'defend' — 2 SP, roll 2d6+DEF, build counter on over-defense\n" +
+                "  'move'   — 1 SP, roll 2d6+MOV evasion vs attack value\n" +
+                "  'take'   — save SP, take full damage\n\n" +
+                $"Target has {target.CurrentStamina} SP available.");
         }
-        
-        /// <summary>
-        /// Get movement options display (legacy)
-        /// </summary>
-        private string GetMovementOptions(MovementResult moveResult)
-        {
-            var options = $"Available positions within {moveResult.MaxDistance} movement:\n";
-            
-            var sortedPositions = moveResult.ValidPositions
-                .OrderBy(p => p.X)
-                .ThenBy(p => p.Y)
-                .Take(20);
-            
-            foreach (var pos in sortedPositions)
-            {
-                var distance = Math.Abs(moveResult.OriginalPosition.X - pos.X) + Math.Abs(moveResult.OriginalPosition.Y - pos.Y);
-                options += $"  → ({pos.X},{pos.Y}) [distance: {distance}]\n";
-            }
-            
-            if (moveResult.ValidPositions.Count > 20)
-                options += $"  ... and {moveResult.ValidPositions.Count - 20} more positions\n";
-            
-            return options;
-        }
-        
-        /// <summary>
-        /// Handle rest action
-        /// </summary>
+
         private string HandleRestAction()
         {
             var character = CurrentActor;
-            var staminaRestored = Math.Min(5, character.MaxStamina - character.CurrentStamina);
-            character.RestoreStamina(staminaRestored);
-            
+            int restored = Math.Min(
+                GameConfig.Current.Combat.RestStaminaRestore,
+                character.MaxStamina - character.CurrentStamina);
+            character.RestoreStamina(restored);
             UseAction(allowsSecondAction: false);
-            
-            var result = $"{character.Name} rests and recovers {staminaRestored} stamina.\n\n";
-            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
+            _gridDisplay.UpdateCharacters(_players);
+            return CreateDisplay(character, $"{character.Name} rests and recovers {restored} SP.\n") + AdvanceToNextTurn();
         }
-        
+
         /// <summary>
-        /// Handle defend action (defensive stance).
-        /// BUG FIX: Now costs 1 stamina to prevent infinite stalemate at low stamina.
+        /// BUG FIX: Defend stance costs 1 stamina to prevent infinite stalemate.
         /// </summary>
         private string HandleDefendAction()
         {
             var character = CurrentActor;
-            
-            // BUG FIX: Defend stance now costs 1 stamina
+
             if (!character.UseStamina(1))
-            {
-                return _gridDisplay.CreateFullDisplay(
-                    $"{character.Name} doesn't have enough stamina to take a defensive stance!\n" +
-                    "Try 'rest' to recover stamina instead."
-                );
-            }
-            
+                return CreateDisplay(character,
+                    $"{character.Name} doesn't have enough stamina to defend!\n" +
+                    "Try 'rest' to recover stamina.");
+
             UseAction(allowsSecondAction: false);
-            
-            var result = $"{character.Name} takes a defensive stance. (-1 SP)\n\n";
-            return _gridDisplay.CreateFullDisplay(result) + AdvanceToNextTurn();
+            _gridDisplay.UpdateCharacters(_players);
+            return CreateDisplay(character, $"{character.Name} takes a defensive stance. (-1 SP)\n") + AdvanceToNextTurn();
         }
-        
-        /// <summary>
-        /// Place players on grid at starting positions
-        /// </summary>
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Display helper — always centers viewport on a character
+        // ─────────────────────────────────────────────────────────────────────
+
+        private string CreateDisplay(Character focusCharacter, string info = "")
+        {
+            _gridDisplay.UpdateCharacters(_players);
+            return _gridDisplay.CreateFullDisplay(focusCharacter ?? CurrentActor, info);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Utilities
+        // ─────────────────────────────────────────────────────────────────────
+
         private void PlacePlayersOnGrid()
         {
-            var positions = new List<Position>
-            {
-                new Position(2, 2),   
-                new Position(5, 5), 
-                new Position(2, 13),  
-                new Position(13, 2)   
-            };
-            
-            for (int i = 0; i < _players.Count && i < positions.Count; i++)
+            var positions = GameConfig.Current.Grid.GetStartingPositions();
+
+            // If config has fewer positions than players, generate extras
+            for (int i = positions.Count; i < _players.Count; i++)
+                positions.Add(new Position(i * 3, i * 3));
+
+            for (int i = 0; i < _players.Count; i++)
                 _players[i].Position = positions[i];
         }
-        
-        /// <summary>
-        /// Find character by first letter of name
-        /// </summary>
+
         private Character FindCharacterByLetter(char letter)
-        {
-            return _players.FirstOrDefault(p => 
-                p.IsAlive && char.ToUpper(p.Name[0]) == char.ToUpper(letter));
-        }
-        
+            => _players.FirstOrDefault(p => p.IsAlive && char.ToUpper(p.Name[0]) == char.ToUpper(letter));
+
         /// <summary>
-        /// Get instructions for current turn
+        /// Check whether a position is inside the arena bounds from config.
         /// </summary>
+        private bool IsInArenaBounds(Position pos)
+            => pos.X >= 0 && pos.X < ArenaWidth && pos.Y >= 0 && pos.Y < ArenaHeight;
+
+        private bool IsInArenaBounds(int x, int y)
+            => x >= 0 && x < ArenaWidth && y >= 0 && y < ArenaHeight;
+
+        private string GetContinuedTurnInstructions()
+            => $"{CurrentActor?.Name}'s turn continues...\n" +
+               $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n" +
+               "  'attack [letter]' — attack adjacent character\n" +
+               "  'move' — WASD movement (1d6), allows second action\n" +
+               "  'dash' — WASD dash (2d6), ends turn\n" +
+               "  'rest' — recover stamina\n" +
+               "  'defend' — defensive stance (1 SP)";
+
         private string GetTurnInstructions(TurnResult turn)
         {
             if (!turn.Success) return turn.Message;
-            
-            var instructions = "Available actions:\n";
-            
+            var sb = new System.Text.StringBuilder("Available actions:\n");
             if (turn.AvailableActions.Contains(ActionChoice.Attack))
-                instructions += "  'attack [letter]' - Attack adjacent character (e.g., 'attack B')\n";
+                sb.AppendLine("  'attack [letter]' — attack adjacent character");
             if (turn.AvailableActions.Contains(ActionChoice.Move))
-                instructions += "  'move' - Enter WASD movement mode (allows second action)\n";
-            if (turn.AvailableActions.Contains(ActionChoice.Move))
-                instructions += "  'dash' - Enter WASD dash mode (ends turn)\n";
+            {
+                sb.AppendLine("  'move' — WASD movement mode (allows second action)");
+                sb.AppendLine("  'dash' — WASD dash mode (ends turn)");
+            }
             if (turn.AvailableActions.Contains(ActionChoice.Rest))
-                instructions += "  'rest' - Recover stamina\n";
+                sb.AppendLine("  'rest' — recover stamina");
             if (turn.AvailableActions.Contains(ActionChoice.Defend))
-                instructions += "  'defend' - Take defensive stance (costs 1 stamina)\n";
-            
-            instructions += "\nMovement: Use WASD keys for intuitive step-by-step movement!";
-            instructions += "\nType 'help' for more information.";
-            
-            return instructions;
+                sb.AppendLine("  'defend' — defensive stance (1 SP)");
+            sb.AppendLine("\nMovement: WASD keys for step-by-step control!");
+            sb.AppendLine("Type 'help' for more information.");
+            return sb.ToString();
         }
-        
-        /// <summary>
-        /// Get help text
-        /// </summary>
+
         private string GetHelpText()
-        {
-            return "Commands:\n" +
-                   "  attack [letter] - Attack character (must be adjacent)\n" +
-                   "  move - Enter WASD movement mode (responsive controls)\n" +
-                   "  dash - Enter WASD dash mode (responsive controls, ends turn)\n" +
-                   "  move/dash x y - Legacy: Move to specific coordinates\n" +
-                   "  rest - Recover 5 stamina\n" +
-                   "  defend - Take defensive stance (costs 1 stamina)\n\n" +
-                   "WASD Movement (Responsive - No Enter Needed):\n" +
-                   "  W/↑ - Move up     S/↓ - Move down\n" +
-                   "  A/← - Move left   D/→ - Move right\n" +
-                   "  Enter/Space - Confirm path   R - Reset path   ESC - Cancel\n\n" +
-                   "Examples: 'attack B', 'move', 'dash'\n" +
-                   "Characters are shown by their first letter on the grid.\n\n" +
-                   "Stamina Costs:\n" +
-                   "  Attack: 3 SP   Defend (response): 2 SP   Evasion: 1 SP\n" +
-                   "  Move: 1 SP     Dash: 1 SP                Defend stance: 1 SP\n" +
-                   "  Rest: free (recovers 5 SP)\n\n" +
-                   "Action Economy: 'move' allows one additional action before ending turn.\n" +
-                   "All other actions end your turn immediately.";
-        }
+            => "Commands:\n" +
+               "  attack [letter]   attack adjacent character\n" +
+               "  move              WASD movement (1d6 + MOV), allows second action\n" +
+               "  dash              WASD dash (2d6 + MOV), ends turn\n" +
+               "  move x y / dash x y   move to specific coordinates (legacy)\n" +
+               "  rest              recover stamina\n" +
+               "  defend            defensive stance (costs 1 SP)\n\n" +
+               "WASD Controls (in movement mode):\n" +
+               "  W/↑ Up   S/↓ Down   A/← Left   D/→ Right\n" +
+               "  Enter — confirm path    R — reset path    ESC — cancel\n\n" +
+               "Stamina Costs:\n" +
+               $"  Attack: {GameConfig.Current.Combat.StaminaCosts.Attack} SP   " +
+               $"Defend (response): {GameConfig.Current.Combat.StaminaCosts.Defend} SP   " +
+               $"Evasion: {GameConfig.Current.Combat.StaminaCosts.Move} SP\n" +
+               $"  Move/Dash: 1 SP   Defend stance: 1 SP   Rest: free (restores {GameConfig.Current.Combat.RestStaminaRestore} SP)\n\n" +
+               $"Arena: {ArenaWidth}×{ArenaHeight} tiles   " +
+               $"Viewport: {GameConfig.Current.Grid.Viewport.Width}×{GameConfig.Current.Grid.Viewport.Height} tiles";
     }
 }

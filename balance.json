@@ -19,16 +19,11 @@
     }
   },
   "grid": {
-    "width": 64,
-    "height": 64,
+    "width": 128,
+    "height": 128,
     "viewport": {
-      "width": 64,
-      "height": 64
-    },
-    "arena": {
-      "diameter": 128,
-      "centerX": 64,
-      "centerY": 64
+      "width": 17,
+      "height": 17
     },
     "startingPositions": [
       { "x": 62, "y": 62 },
@@ -44,7 +39,13 @@
     "maxSkipAttempts": 10
   },
   "movement": {
-    "simpleMove": { "diceCount": 1, "diceSides": 6 },
-    "dashMove": { "diceCount": 2, "diceSides": 6 }
+    "simpleMove": {
+      "diceCount": 1,
+      "diceSides": 6
+    },
+    "dashMove": {
+      "diceCount": 2,
+      "diceSides": 6
+    }
   }
 }

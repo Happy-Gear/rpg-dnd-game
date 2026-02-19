@@ -6,7 +6,8 @@
       "move": 1
     },
     "restStaminaRestore": 5,
-    "attackRange": 1,
+    "attackRange": 9,
+    "reach": 8,
     "counterGauge": {
       "maximum": 6
     }
@@ -22,14 +23,26 @@
     "width": 128,
     "height": 128,
     "viewport": {
-      "width": 17,
-      "height": 17
+      "width": 49,
+      "height": 49
     },
     "startingPositions": [
-      { "x": 62, "y": 62 },
-      { "x": 66, "y": 66 },
-      { "x": 62, "y": 66 },
-      { "x": 66, "y": 62 }
+      {
+        "x": 62,
+        "y": 62
+      },
+      {
+        "x": 66,
+        "y": 66
+      },
+      {
+        "x": 62,
+        "y": 66
+      },
+      {
+        "x": 66,
+        "y": 62
+      }
     ]
   },
   "turns": {

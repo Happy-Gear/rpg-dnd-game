@@ -617,7 +617,7 @@ namespace RPGGame.Core
 
             if (!_gridDisplay.IsInAttackRange(attacker.Position, target.Position))
                 return CreateDisplay(attacker,
-                    $"{target.Name} is not adjacent!\n" +
+                    $"{target.Name} is out of reach!\n" +
                     _gridDisplay.DrawAttackRange(attacker) +
                     $"\n{attacker.Name} @ ({attacker.Position.X},{attacker.Position.Y}) → " +
                     $"{target.Name} @ ({target.Position.X},{target.Position.Y})");
@@ -724,7 +724,7 @@ namespace RPGGame.Core
         private string GetContinuedTurnInstructions()
             => $"{CurrentActor?.Name}'s turn continues...\n" +
                $"Actions used: {_actionsUsedThisTurn}/{_maxActionsThisTurn}\n" +
-               "  'attack [letter]' — attack adjacent character\n" +
+               "  'attack [letter]' — attack character within reach\n" +
                "  'move' — WASD movement (1d6), allows second action\n" +
                "  'dash' — WASD dash (2d6), ends turn\n" +
                "  'rest' — recover stamina\n" +
@@ -735,7 +735,7 @@ namespace RPGGame.Core
             if (!turn.Success) return turn.Message;
             var sb = new System.Text.StringBuilder("Available actions:\n");
             if (turn.AvailableActions.Contains(ActionChoice.Attack))
-                sb.AppendLine("  'attack [letter]' — attack adjacent character");
+                sb.AppendLine("  'attack [letter]' — attack character within reach");
             if (turn.AvailableActions.Contains(ActionChoice.Move))
             {
                 sb.AppendLine("  'move' — WASD movement mode (allows second action)");
@@ -752,7 +752,7 @@ namespace RPGGame.Core
 
         private string GetHelpText()
             => "Commands:\n" +
-               "  attack [letter]   attack adjacent character\n" +
+               "  attack [letter]   attack character within reach\n" +
                "  move              WASD movement (1d6 + MOV), allows second action\n" +
                "  dash              WASD dash (2d6 + MOV), ends turn\n" +
                "  move x y / dash x y   move to specific coordinates (legacy)\n" +

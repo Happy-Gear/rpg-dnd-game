@@ -176,7 +176,7 @@ namespace RPGGame.Display
             var targets = GetCharactersInAttackRange(attacker);
 
             if (!targets.Any())
-                return $"{attacker.Name} has no valid targets in attack range (adjacent positions).\n";
+                return $"{attacker.Name} has no valid targets in attack range (reach: {GameConfig.Current.Combat.Reach + 1} cells).\n";
 
             var sb = new StringBuilder();
             sb.AppendLine($"{attacker.Name} can attack:");
@@ -199,9 +199,11 @@ namespace RPGGame.Display
 
         public bool IsInAttackRange(Position attackerPos, Position targetPos)
         {
-            int dx = Math.Abs(attackerPos.X - targetPos.X);
-            int dy = Math.Abs(attackerPos.Y - targetPos.Y);
-            return dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0);
+            if (attackerPos.X == targetPos.X && attackerPos.Y == targetPos.Y) return false;
+            double dx = targetPos.X - attackerPos.X;
+            double dy = targetPos.Y - attackerPos.Y;
+            double dist = Math.Sqrt(dx * dx + dy * dy);
+            return dist <= GameConfig.Current.Combat.Reach + 1;
         }
 
         public List<Position> GetValidMovePositions(Character character)
@@ -317,17 +319,26 @@ namespace RPGGame.Display
             var occupant = _characters.FirstOrDefault(c => c.Position.X == worldX && c.Position.Y == worldY);
             if (occupant != null)
             {
-                // In PrivateView mode, hide off-screen enemies as '?'
                 if (_camera.Mode == CameraMode.PrivateView &&
                     _camera.ShouldHideCharacter(occupant, _viewport))
                     return '?';
-
                 return char.ToUpper(occupant.Name[0]);
             }
 
-            // Center crosshair (empty center tile)
+            // Center crosshair on empty center tile
             if (isExactCenter)
                 return '+';
+
+            // Reach indicator — hollow circle border only (Euclidean, outline within 0.7 tile of radius)
+            if (focusCharacter != null)
+            {
+                int reach = GameConfig.Current.Combat.Reach;
+                double dx = worldX - focusCharacter.Position.X;
+                double dy = worldY - focusCharacter.Position.Y;
+                double dist = Math.Sqrt(dx * dx + dy * dy);
+                if (dist >= reach - 0.7 && dist <= reach + 0.7)
+                    return ',';
+            }
 
             return '.';
         }
@@ -372,6 +383,14 @@ namespace RPGGame.Display
                 startPosition != null &&
                 startPosition.X == worldX && startPosition.Y == worldY)
                 return '○';
+
+            // Reach indicator — hollow circle border only
+            int reach = GameConfig.Current.Combat.Reach;
+            double rdx = worldX - movingCharacter.Position.X;
+            double rdy = worldY - movingCharacter.Position.Y;
+            double rdist = Math.Sqrt(rdx * rdx + rdy * rdy);
+            if (rdist >= reach - 0.7 && rdist <= reach + 0.7)
+                return ',';
 
             return '.';
         }

@@ -27,12 +27,22 @@ namespace RPGGame.Display
 
         private List<Character> _characters;
 
+        // Camera / coordinate transform system
+        private readonly ViewportSystem _viewport;
+        private readonly CameraController _camera;
+
+        /// <summary>Exposes camera so GameManager can change modes (follow, midpoint, lock-on, etc.)</summary>
+        public CameraController Camera => _camera;
+
+        /// <summary>Exposes viewport for direct coordinate queries.</summary>
+        public ViewportSystem Viewport => _viewport;
+
         /// <summary>
         /// Create a GridDisplay driven by balance.json values.
         /// </summary>
         public GridDisplay()
         {
-            var cfg = GameConfig.Current.Grid;
+            var cfg      = GameConfig.Current.Grid;
             _arenaWidth  = cfg.Width;
             _arenaHeight = cfg.Height;
             _vpWidth     = cfg.Viewport.Width;
@@ -40,6 +50,8 @@ namespace RPGGame.Display
             _vpHalfW     = cfg.ViewportHalfW;
             _vpHalfH     = cfg.ViewportHalfH;
             _characters  = new List<Character>();
+            _viewport    = new ViewportSystem();
+            _camera      = new CameraController(_characters);
         }
 
         /// <summary>
@@ -55,6 +67,7 @@ namespace RPGGame.Display
         public void UpdateCharacters(List<Character> characters)
         {
             _characters = characters?.Where(c => c.IsAlive).ToList() ?? new List<Character>();
+            _camera.UpdateCharacters(_characters);
         }
 
         /// <summary>
@@ -98,67 +111,49 @@ namespace RPGGame.Display
         public string DrawViewport(Character focusCharacter)
         {
             if (focusCharacter == null)
-                return DrawFullGrid(); // Fallback: draw from (0,0) if no focus
+                return DrawFullGrid();
 
-            int focusX = focusCharacter.Position.X;
-            int focusY = focusCharacter.Position.Y;
+            // 1. Ask CameraController where to focus
+            var (focusX, focusY) = _camera.GetFocusPoint(focusCharacter);
 
-            // World coords of the top-left corner of the viewport
-            int startX = focusX - _vpHalfW;
-            int startY = focusY + _vpHalfH; // Y increases upward; top row = highest Y
+            // 2. Tell ViewportSystem to center there
+            _viewport.UpdatePlayerPosition(focusX, focusY);
+
+            // 3. Get bounds from ViewportSystem (it owns the math now)
+            var (minX, maxX, minY, maxY) = _viewport.GetViewportBoundsWorldCoords();
 
             var sb = new StringBuilder();
 
-            // Header: world position of focus + viewport info
             sb.AppendLine($"  Arena {_arenaWidth}×{_arenaHeight} | " +
                           $"View {_vpWidth}×{_vpHeight} | " +
-                          $"Focus: {focusCharacter.Name} @ ({focusX},{focusY})");
+                          $"{_camera.GetModeDescription()} @ ({focusX},{focusY})");
             sb.AppendLine();
 
-            // Top Y axis label
-            sb.AppendLine($"  y={startY,4} ┌" + new string('─', _vpWidth * 4 - 1) + "┐");
+            // Top border
+            sb.AppendLine($"  {maxY,4} ┌" + new string('─', _vpWidth * 2 - 1) + "┐");
 
-            // Grid rows — top of viewport is highest Y (so we iterate downward)
-            for (int row = 0; row < _vpHeight; row++)
+            // Rows from top (maxY) to bottom (minY)
+            for (int worldY = maxY; worldY >= minY; worldY--)
             {
-                int worldY = startY - row;
-                bool isMiddleRow = (row == _vpHalfH);
+                sb.Append($"  {worldY,4} │ ");
 
-                // Left axis label
-                if (isMiddleRow)
-                    sb.Append($"  y={worldY,4} ┤ ");
-                else
-                    sb.Append($"       │ ");
-
-                // Columns
-                for (int col = 0; col < _vpWidth; col++)
+                for (int worldX = minX; worldX <= maxX; worldX++)
                 {
-                    int worldX = startX + col;
-                    bool isCenter = (col == _vpHalfW && isMiddleRow);
-
+                    bool isCenter = (worldX == focusX && worldY == focusY);
                     char cell = GetCellChar(worldX, worldY, focusCharacter, isCenter);
                     sb.Append(cell);
-
-                    if (col < _vpWidth - 1)
-                        sb.Append("   "); // 3 spaces between tiles
+                    if (worldX < maxX) sb.Append(" ");
                 }
 
                 sb.AppendLine(" │");
-
-                if (row < _vpHeight - 1)
-                    sb.AppendLine("       │" + new string(' ', _vpWidth * 4) + "│");
             }
 
             // Bottom border
-            int bottomY = startY - (_vpHeight - 1);
-            sb.AppendLine($"  y={bottomY,4} └" + new string('─', _vpWidth * 4 - 1) + "┘");
+            sb.AppendLine($"  {minY,4} └" + new string('─', _vpWidth * 2 - 1) + "┘");
+            sb.AppendLine($"       x={minX,-6} x={focusX}(center) x={maxX}");
 
-            // X axis labels (start, center, end)
-            int endX = startX + _vpWidth - 1;
-            sb.AppendLine($"         x={startX,-6}  x={focusX}  (center)  x={endX}");
-
-            // Off-screen character indicators
-            var offScreen = GetOffScreenIndicators(focusCharacter, startX, startY, endX, bottomY);
+            // Off-screen indicators
+            var offScreen = GetOffScreenIndicators(focusCharacter, focusX, focusY, minX, maxX, minY, maxY);
             if (offScreen.Count > 0)
             {
                 sb.AppendLine();
@@ -221,7 +216,8 @@ namespace RPGGame.Display
                     if (dx == 0 && dy == 0) continue;
                     var newPos = new Position(cur.X + dx, cur.Y + dy);
 
-                    if (IsInArenaBounds(newPos) && !_characters.Any(c => c.Position.Equals(newPos)))
+                    if (_viewport.IsValidArenaPosition(newPos.X, newPos.Y) &&
+                        !_characters.Any(c => c.Position.Equals(newPos)))
                         positions.Add(newPos);
                 }
             }
@@ -270,48 +266,36 @@ namespace RPGGame.Display
         {
             if (movingCharacter == null) return "";
 
-            // For preview purposes use the final path position (or current pos) as focus
-            var previewPos = path != null && path.Count > 0 ? path.Last() : movingCharacter.Position;
-            int focusX = movingCharacter.Position.X; // Keep focus on character's actual position
-            int focusY = movingCharacter.Position.Y;
+            // During movement, always follow the moving character directly
+            _viewport.UpdatePlayerPosition(movingCharacter.Position.X, movingCharacter.Position.Y);
 
-            int startX = focusX - _vpHalfW;
-            int startY = focusY + _vpHalfH;
+            var (minX, maxX, minY, maxY) = _viewport.GetViewportBoundsWorldCoords();
+            int focusX = movingCharacter.Position.X;
+            int focusY = movingCharacter.Position.Y;
 
             var sb = new StringBuilder();
             sb.AppendLine($"  Arena {_arenaWidth}×{_arenaHeight} | " +
                           $"View {_vpWidth}×{_vpHeight} | " +
                           $"Moving: {movingCharacter.Name} @ ({focusX},{focusY})");
             sb.AppendLine();
-            sb.AppendLine($"  y={startY,4} ┌" + new string('─', _vpWidth * 4 - 1) + "┐");
+            sb.AppendLine($"  {maxY,4} ┌" + new string('─', _vpWidth * 2 - 1) + "┐");
 
-            for (int row = 0; row < _vpHeight; row++)
+            for (int worldY = maxY; worldY >= minY; worldY--)
             {
-                int worldY = startY - row;
-                bool isMiddleRow = (row == _vpHalfH);
+                sb.Append($"  {worldY,4} │ ");
 
-                if (isMiddleRow)
-                    sb.Append($"  y={worldY,4} ┤ ");
-                else
-                    sb.Append($"       │ ");
-
-                for (int col = 0; col < _vpWidth; col++)
+                for (int worldX = minX; worldX <= maxX; worldX++)
                 {
-                    int worldX = startX + col;
                     char cell = GetCellCharWithPath(worldX, worldY, movingCharacter, startPosition, path);
                     sb.Append(cell);
-                    if (col < _vpWidth - 1)
-                        sb.Append("   ");
+                    if (worldX < maxX) sb.Append(" ");
                 }
 
                 sb.AppendLine(" │");
-                if (row < _vpHeight - 1)
-                    sb.AppendLine("       │" + new string(' ', _vpWidth * 4) + "│");
             }
 
-            int bottomY = startY - (_vpHeight - 1);
-            sb.AppendLine($"  y={bottomY,4} └" + new string('─', _vpWidth * 4 - 1) + "┘");
-            sb.AppendLine($"         x={startX,-6}  x={focusX}  (center)  x={startX + _vpWidth - 1}");
+            sb.AppendLine($"  {minY,4} └" + new string('─', _vpWidth * 2 - 1) + "┘");
+            sb.AppendLine($"       x={minX,-6} x={focusX}(center) x={maxX}");
 
             return sb.ToString();
         }
@@ -326,15 +310,18 @@ namespace RPGGame.Display
         private char GetCellChar(int worldX, int worldY, Character focusCharacter, bool isExactCenter)
         {
             // Out of arena bounds — show wall
-            if (!IsInArenaBounds(worldX, worldY))
+            if (!_viewport.IsValidArenaPosition(worldX, worldY))
                 return '#';
 
             // Check if any character occupies this tile
             var occupant = _characters.FirstOrDefault(c => c.Position.X == worldX && c.Position.Y == worldY);
             if (occupant != null)
             {
-                // Focus character shown in uppercase (always)
-                // Other characters also uppercase — distinguishable by position context
+                // In PrivateView mode, hide off-screen enemies as '?'
+                if (_camera.Mode == CameraMode.PrivateView &&
+                    _camera.ShouldHideCharacter(occupant, _viewport))
+                    return '?';
+
                 return char.ToUpper(occupant.Name[0]);
             }
 
@@ -354,7 +341,7 @@ namespace RPGGame.Display
             Position startPosition,
             List<Position> path)
         {
-            if (!IsInArenaBounds(worldX, worldY))
+            if (!_viewport.IsValidArenaPosition(worldX, worldY))
                 return '#';
 
             if (path != null && path.Count > 0)
@@ -394,7 +381,8 @@ namespace RPGGame.Display
         /// </summary>
         private List<string> GetOffScreenIndicators(
             Character focusCharacter,
-            int vpLeft, int vpTop, int vpRight, int vpBottom)
+            int focusX, int focusY,
+            int minX, int maxX, int minY, int maxY)
         {
             var result = new List<string>();
 
@@ -403,15 +391,23 @@ namespace RPGGame.Display
                 int cx = c.Position.X;
                 int cy = c.Position.Y;
 
-                // Is this character inside the current viewport?
-                if (cx >= vpLeft && cx <= vpRight && cy <= vpTop && cy >= vpBottom)
-                    continue; // Visible — no indicator needed
+                // Already visible — no indicator needed
+                if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY)
+                    continue;
 
-                int dx = cx - focusCharacter.Position.X;
-                int dy = cy - focusCharacter.Position.Y;
+                // PrivateView: hidden enemies show minimal info
+                if (_camera.Mode == CameraMode.PrivateView &&
+                    _camera.ShouldHideCharacter(c, _viewport))
+                {
+                    result.Add("[?] Unknown enemy detected nearby");
+                    continue;
+                }
+
+                int dx   = cx - focusX;
+                int dy   = cy - focusY;
                 int dist = (int)Math.Round(Math.Sqrt(dx * dx + dy * dy));
-
                 string compass = GetCompassDirection(dx, dy);
+
                 result.Add($"[{char.ToUpper(c.Name[0])}] {c.Name}: {compass}  {dist} tiles  " +
                            $"({cx},{cy})  HP:{c.CurrentHealth}/{c.MaxHealth}");
             }
@@ -468,10 +464,5 @@ namespace RPGGame.Display
             return sb.ToString();
         }
 
-        private bool IsInArenaBounds(int x, int y)
-            => x >= 0 && x < _arenaWidth && y >= 0 && y < _arenaHeight;
-
-        private bool IsInArenaBounds(Position pos)
-            => IsInArenaBounds(pos.X, pos.Y);
     }
 }

@@ -132,8 +132,6 @@ namespace RPGGame.Core
             if (Grid.Height < 2) errors.Add("grid.height must be >= 2");
             if (Grid.Viewport.Width < 3) errors.Add("grid.viewport.width must be >= 3");
             if (Grid.Viewport.Height < 3) errors.Add("grid.viewport.height must be >= 3");
-            if (Grid.Viewport.Width % 2 == 0) errors.Add("grid.viewport.width should be odd for clean centering");
-            if (Grid.Viewport.Height % 2 == 0) errors.Add("grid.viewport.height should be odd for clean centering");
             if (Grid.StartingPositions == null || Grid.StartingPositions.Count == 0)
                 errors.Add("grid.startingPositions must have at least one entry");
 
@@ -261,6 +259,37 @@ namespace RPGGame.Core
 
         /// <summary>Half height of viewport (tiles visible above/below focus)</summary>
         public int ViewportHalfH => Viewport.Height / 2;
+
+        /// <summary>
+        /// Returns the world-coordinate bounds of the viewport centered on a focus position.
+        /// minX, maxX, minY, maxY are all inclusive.
+        /// </summary>
+        public (int minX, int maxX, int minY, int maxY) GetViewportBounds(int focusX, int focusY)
+        {
+            int minX = focusX - ViewportHalfW;
+            int maxX = focusX + ViewportHalfW;
+            int minY = focusY - ViewportHalfH;
+            int maxY = focusY + ViewportHalfH;
+            return (minX, maxX, minY, maxY);
+        }
+
+        /// <summary>
+        /// Overload that accepts a Position object.
+        /// </summary>
+        public (int minX, int maxX, int minY, int maxY) GetViewportBounds(Position focus)
+            => GetViewportBounds(focus.X, focus.Y);
+
+        /// <summary>
+        /// Returns true if the given world coordinate is inside the arena bounds.
+        /// </summary>
+        public bool IsValidArenaPosition(int x, int y)
+            => x >= 0 && x < Width && y >= 0 && y < Height;
+
+        /// <summary>
+        /// Overload that accepts a Position object.
+        /// </summary>
+        public bool IsValidArenaPosition(Position pos)
+            => IsValidArenaPosition(pos.X, pos.Y);
     }
 
     /// <summary>

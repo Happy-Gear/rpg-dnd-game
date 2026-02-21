@@ -27,12 +27,13 @@ namespace RPGGame
             // Create test characters
             var alice = CreateCharacter("Alice", 1, 0, 0, 0, 0, 5); // ATK:1, DEF:0, MOV:1
             var bob = CreateCharacter("Bob", 1, 0, 0, 0, 0, 5);     // ATK:2, DEF:0, MOV:0
+			var crl= CreateCharacter("Crl", 1, 0, 0, 0, 0, 5); 
                         
             // Initialize game
             var game = new GameManager(8,8);
             
             // Start the game
-            Console.WriteLine(game.StartGame(alice, bob));
+            Console.WriteLine(game.StartGame(alice, bob,crl));
             
             // Enhanced game loop with responsive controls
             while (game.GameActive)

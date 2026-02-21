@@ -175,6 +175,9 @@ namespace RPGGame.Core
         [JsonPropertyName("attackRange")]
         public int AttackRange { get; set; } = 1;
 
+        [JsonPropertyName("reach")]
+        public int Reach { get; set; } = 8;
+
         [JsonPropertyName("counterGauge")]
         public CounterGaugeConfig CounterGauge { get; set; } = new();
     }

@@ -14,6 +14,7 @@ namespace RPGGame.Core
         private List<Character> _participants;
         private Queue<Character> _turnQueue;
         private Character _currentActor;
+        private TurnType _currentTurnType = TurnType.Normal;
         private int _roundNumber;
         private List<TurnLog> _turnHistory;
         
@@ -41,7 +42,6 @@ namespace RPGGame.Core
             if (_participants.Count < 2)
                 throw new InvalidOperationException("Need at least 2 living characters for combat");
             
-            // Determine turn order (could be based on AGI/initiative later)
             ShuffleTurnOrder();
             StartNewRound();
             GameActive = true;
@@ -52,82 +52,79 @@ namespace RPGGame.Core
         /// <summary>
         /// Advance to next player's turn
         /// </summary>
-       public TurnResult NextTurn()
-		{
-			if (!GameActive)
-				return new TurnResult { Success = false, Message = "Combat not active" };
+        public TurnResult NextTurn()
+        {
+            if (!GameActive)
+                return new TurnResult { Success = false, Message = "Combat not active" };
 
-			// Check for counter-attacks (badminton streak interruptions)
-			var counterAttacker = CheckForCounterAttacks();
-			if (counterAttacker != null)
-			{
-				return HandleCounterAttackTurn(counterAttacker);
-			}
+            // Check for counter-attacks (badminton streak interruptions)
+            var counterAttacker = CheckForCounterAttacks();
+            if (counterAttacker != null)
+            {
+                return HandleCounterAttackTurn(counterAttacker);
+            }
 
-			// Normal turn progression
-			if (_turnQueue.Count == 0)
-			{
-				StartNewRound();
-			}
+            // Normal turn progression
+            if (_turnQueue.Count == 0)
+            {
+                StartNewRound();
+            }
 
-			// SAFETY: Prevent infinite recursion
-			int attempts = 0;
-			int maxAttempts = GameConfig.Current.Turns.MaxSkipAttempts;
+            int attempts = 0;
+            int maxAttempts = GameConfig.Current.Turns.MaxSkipAttempts;
 
-			while (attempts < maxAttempts)
-			{
-				if (_turnQueue.Count == 0)
-				{
-					StartNewRound();
-				}
+            while (attempts < maxAttempts)
+            {
+                if (_turnQueue.Count == 0)
+                {
+                    StartNewRound();
+                }
 
-				_currentActor = _turnQueue.Dequeue();
+                _currentActor = _turnQueue.Dequeue();
 
-				// If character can act normally, return
-				if (_currentActor.CanAct)
-				{
-					LogTurn($"{_currentActor.Name}'s turn begins");
-					return new TurnResult
-					{
-						Success = true,
-						CurrentActor = _currentActor,
-						TurnType = TurnType.Normal,
-						AvailableActions = GetAvailableActions(_currentActor),
-						Message = $"{_currentActor.Name}'s turn"
-					};
-				}
+                if (_currentActor.CanAct)
+                {
+                    _currentTurnType = TurnType.Normal;
+                    LogTurn($"{_currentActor.Name}'s turn begins");
+                    return new TurnResult
+                    {
+                        Success = true,
+                        CurrentActor = _currentActor,
+                        TurnType = TurnType.Normal,
+                        AvailableActions = GetAvailableActions(_currentActor),
+                        Message = $"{_currentActor.Name}'s turn"
+                    };
+                }
 
-				// Character can't act - force rest if alive but no stamina
-				if (_currentActor.IsAlive && _currentActor.CurrentStamina == 0)
-				{
-					var restAmount = GameConfig.Current.Turns.ForcedRestRestore;
-					LogTurn($"{_currentActor.Name} has no stamina - forced to rest");
-					_currentActor.RestoreStamina(restAmount);
-					
-					return new TurnResult
-					{
-						Success = true,
-						CurrentActor = _currentActor,
-						TurnType = TurnType.Normal,
-						AvailableActions = GetAvailableActions(_currentActor),
-						Message = $"{_currentActor.Name} was forced to rest (no stamina) and recovered {restAmount} stamina"
-					};
-				}
+                if (_currentActor.IsAlive && _currentActor.CurrentStamina == 0)
+                {
+                    var restAmount = GameConfig.Current.Turns.ForcedRestRestore;
+                    LogTurn($"{_currentActor.Name} has no stamina - forced to rest");
+                    _currentActor.RestoreStamina(restAmount);
+                    _currentTurnType = TurnType.Normal;
+                    
+                    return new TurnResult
+                    {
+                        Success = true,
+                        CurrentActor = _currentActor,
+                        TurnType = TurnType.Normal,
+                        AvailableActions = GetAvailableActions(_currentActor),
+                        Message = $"{_currentActor.Name} was forced to rest (no stamina) and recovered {restAmount} stamina"
+                    };
+                }
 
-				// Character is dead - skip
-				LogTurn($"{_currentActor.Name} cannot act, skipping turn");
-				attempts++;
-			}
+                LogTurn($"{_currentActor.Name} cannot act, skipping turn");
+                attempts++;
+            }
 
-			// Safety fallback - end game if all characters stuck
-			LogTurn("All characters unable to act - ending combat");
-			GameActive = false;
-			return new TurnResult 
-			{ 
-				Success = false, 
-				Message = "Combat ended - no valid actors remaining" 
-			};
-		}
+            LogTurn("All characters unable to act - ending combat");
+            GameActive = false;
+            return new TurnResult 
+            { 
+                Success = false, 
+                Message = "Combat ended - no valid actors remaining" 
+            };
+        }
         
         /// <summary>
         /// Execute a player action during their turn
@@ -165,7 +162,6 @@ namespace RPGGame.Core
                     break;
             }
             
-            // Check for win condition
             if (CheckWinCondition())
             {
                 GameActive = false;
@@ -181,25 +177,26 @@ namespace RPGGame.Core
         /// <summary>
         /// Handle counter-attack turns (badminton streak)
         /// </summary>
-		private TurnResult HandleCounterAttackTurn(Character counterAttacker)
-		{
-			_currentActor = counterAttacker;
-			LogTurn($"⚡ {counterAttacker.Name} gets a COUNTER ATTACK turn! [BADMINTON STREAK]");
-			
-			// CRITICAL FIX: Consume counter immediately when granting counter turn
-			// This prevents infinite loop of counter attack turns
-			counterAttacker.Counter.ConsumeCounter();
-			
-			return new TurnResult
-			{
-				Success = true,
-				CurrentActor = counterAttacker,
-				TurnType = TurnType.CounterAttack,
-				AvailableActions = new List<ActionChoice> { ActionChoice.Attack }, // Only attack on counter turns
-				Message = $"⚡ {counterAttacker.Name} COUNTER ATTACK! Counter consumed - use it now!"
-			};
-		}
-		// <summary>
+        private TurnResult HandleCounterAttackTurn(Character counterAttacker)
+        {
+            _currentActor = counterAttacker;
+            _currentTurnType = TurnType.CounterAttack;
+            LogTurn($"⚡ {counterAttacker.Name} gets a COUNTER ATTACK turn! [BADMINTON STREAK]");
+            
+            // Consume counter immediately to prevent infinite loop
+            counterAttacker.Counter.ConsumeCounter();
+            
+            return new TurnResult
+            {
+                Success = true,
+                CurrentActor = counterAttacker,
+                TurnType = TurnType.CounterAttack,
+                AvailableActions = new List<ActionChoice> { ActionChoice.Attack },
+                Message = $"⚡ {counterAttacker.Name} COUNTER ATTACK! Counter consumed - use it now!"
+            };
+        }
+
+        /// <summary>
         /// Check if any character has a ready counter
         /// </summary>
         private Character CheckForCounterAttacks()
@@ -207,18 +204,13 @@ namespace RPGGame.Core
             return _participants.FirstOrDefault(p => p.IsAlive && p.Counter.IsReady);
         }
         
-        /// <summary>
-        /// Start a new round with all living participants
-        /// </summary>
         private void StartNewRound()
         {
             _roundNumber++;
             _turnQueue.Clear();
             
-            // Add all living participants to turn queue
             var livingParticipants = _participants.Where(p => p.IsAlive).ToList();
             
-            // Shuffle turn order each round (or implement initiative system)
             foreach (var participant in livingParticipants)
             {
                 _turnQueue.Enqueue(participant);
@@ -227,20 +219,12 @@ namespace RPGGame.Core
             LogTurn($"=== ROUND {_roundNumber} BEGINS ===");
         }
         
-        /// <summary>
-        /// Determine turn order (placeholder for initiative system)
-        /// </summary>
         private void ShuffleTurnOrder()
         {
-            // Future: Implement initiative based on AGI + dice roll
-            // For now, random order
             var random = new Random();
             _participants = _participants.OrderBy(x => random.Next()).ToList();
         }
         
-        /// <summary>
-        /// Get available actions for current character
-        /// </summary>
         private List<ActionChoice> GetAvailableActions(Character character)
         {
             var actions = new List<ActionChoice>();
@@ -249,14 +233,11 @@ namespace RPGGame.Core
             if (character.CurrentStamina >= costs.Attack) actions.Add(ActionChoice.Attack);
             if (character.CurrentStamina >= costs.Defend) actions.Add(ActionChoice.Defend);
             if (character.CurrentStamina >= costs.Move) actions.Add(ActionChoice.Move);
-            actions.Add(ActionChoice.Rest); // Always available
+            actions.Add(ActionChoice.Rest);
             
             return actions;
         }
         
-        /// <summary>
-        /// Handle different action types
-        /// </summary>
         private ActionResult HandleAttackAction(Character target)
         {
             if (target == null || !target.IsAlive)
@@ -272,7 +253,7 @@ namespace RPGGame.Core
                 Actor = _currentActor,
                 Target = target,
                 Message = $"{_currentActor.Name} attacks {target.Name}",
-                RequiresTargetResponse = true // Target must choose DEF/MOV/TakeDamage
+                RequiresTargetResponse = true
             };
         }
         
@@ -308,7 +289,6 @@ namespace RPGGame.Core
         
         private ActionResult HandleRestAction()
         {
-            // Rest restores stamina and allows access to special abilities
             var restAmount = GameConfig.Current.Combat.RestStaminaRestore;
             int staminaRestored = Math.Min(restAmount, _currentActor.MaxStamina - _currentActor.CurrentStamina);
             _currentActor.RestoreStamina(staminaRestored);
@@ -322,13 +302,9 @@ namespace RPGGame.Core
             };
         }
         
-        /// <summary>
-        /// Check if combat should end
-        /// </summary>
         private bool CheckWinCondition()
         {
-            var livingParticipants = _participants.Where(p => p.IsAlive).Count();
-            return livingParticipants <= 1;
+            return _participants.Where(p => p.IsAlive).Count() <= 1;
         }
         
         private void LogTurn(string message)
@@ -351,10 +327,10 @@ namespace RPGGame.Core
         {
             return _participants.Where(p => p.IsAlive).ToList();
         }
-		
-		public TurnType GetCurrentTurnType()
-		{
-			return TurnType.Normal; // Placeholder - implement based on your turn tracking
-		}
+
+        public TurnType GetCurrentTurnType()
+        {
+            return _currentTurnType;
+        }
     }
 }

@@ -24,33 +24,22 @@ namespace RPGGame
                 Console.WriteLine("⚠ balance.json not found — using defaults");
             }
             
-            // Create test characters
-            var alice = CreateCharacter("Alice", 1, 0, 0, 0, 0, 5); // ATK:1, DEF:0, MOV:1
-            var bob = CreateCharacter("Bob", 1, 0, 0, 0, 0, 5);     // ATK:2, DEF:0, MOV:0
-			var crl= CreateCharacter("Crl", 1, 0, 0, 0, 0, 5); 
-			var dee= CreateCharacter("Dee", 1, 0, 0, 0, 0, 5); 
+            // Alice: high DEF (Endurance = 6), low everything else
+            // Bob: balanced attacker
+            var alice = CreateCharacter("Alice", str: 1, end: 6, cha: 0, intel: 0, agi: 1, wis: 0);
+            var bob   = CreateCharacter("Bob",   str: 3, end: 1, cha: 0, intel: 0, agi: 1, wis: 0);
                         
-            // Initialize game
-            var game = new GameManager(8,8);
+            var game = new GameManager(8, 8);
+            Console.WriteLine(game.StartGame(alice, bob));
             
-            // Start the game
-            Console.WriteLine(game.StartGame(alice, bob,crl,dee));
-            
-            // Enhanced game loop with responsive controls
             while (game.GameActive)
             {
                 try
                 {
                     if (game.InMovementMode)
-                    {
-                        // Movement mode: Use responsive key input
                         HandleMovementMode(game);
-                    }
                     else
-                    {
-                        // Normal mode: Use text commands
                         HandleNormalMode(game);
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -64,65 +53,30 @@ namespace RPGGame
             Console.ReadKey();
         }
         
-        /// <summary>
-        /// Handle responsive WASD controls during movement mode
-        /// </summary>
         static void HandleMovementMode(GameManager game)
         {
             Console.WriteLine("\n🎮 MOVEMENT MODE - Use WASD keys (no Enter needed)");
             Console.Write("Press key: ");
-            
-            // Read single key without Enter
-            var keyInfo = Console.ReadKey(true); // true = don't display the key
-            Console.WriteLine($"[{keyInfo.Key}]"); // Show what key was pressed
-            
-            // Handle special cases
-            if (keyInfo.Key == ConsoleKey.Q)
-            {
-                Console.WriteLine("Exiting game...");
-                Environment.Exit(0);
-            }
-            
-            // Process the key input
-            var result = game.ProcessKeyInput(keyInfo);
-            Console.WriteLine(result);
+            var keyInfo = Console.ReadKey(true);
+            Console.WriteLine($"[{keyInfo.Key}]");
+            if (keyInfo.Key == ConsoleKey.Q) Environment.Exit(0);
+            Console.WriteLine(game.ProcessKeyInput(keyInfo));
         }
         
-        /// <summary>
-        /// Handle text commands during normal game mode
-        /// </summary>
         static void HandleNormalMode(GameManager game)
         {
             Console.Write("\n> ");
             var input = Console.ReadLine();
-            
-            if (string.IsNullOrWhiteSpace(input))
-                return;
-                
-            if (input.ToLower() == "quit" || input.ToLower() == "exit")
-            {
-                Console.WriteLine("Exiting game...");
-                Environment.Exit(0);
-            }
-            
-            // Hot-reload config during gameplay
+            if (string.IsNullOrWhiteSpace(input)) return;
+            if (input.ToLower() is "quit" or "exit") Environment.Exit(0);
             if (input.ToLower() == "reload")
             {
-                if (GameConfig.Reload())
-                    Console.WriteLine("✓ Config reloaded!");
-                else
-                    Console.WriteLine("✗ Reload failed — check balance.json");
+                Console.WriteLine(GameConfig.Reload() ? "✓ Config reloaded!" : "✗ Reload failed");
                 return;
             }
-            
-            // Process text command
-            var result = game.ProcessAction(input);
-            Console.WriteLine(result);
+            Console.WriteLine(game.ProcessAction(input));
         }
         
-        /// <summary>
-        /// Create a character with specified stats
-        /// </summary>
         static Character CreateCharacter(string name, int str, int end, int cha, int intel, int agi, int wis)
         {
             var stats = new CharacterStats(str, end, cha, intel, agi, wis);

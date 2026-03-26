@@ -46,7 +46,7 @@ namespace RPGGame.Core
         private int _actionsUsedThisTurn;
         private int _maxActionsThisTurn;
 
-        // Convenience: arena size from config (avoids repeated lookups)
+        // Convenience: arena size from config
         private int ArenaWidth  => GameConfig.Current.Grid.Width;
         private int ArenaHeight => GameConfig.Current.Grid.Height;
 
@@ -60,7 +60,7 @@ namespace RPGGame.Core
         {
             _turnManager   = new TurnManager();
             _combatSystem  = new CombatSystem();
-            _gridDisplay   = new GridDisplay(); // reads config internally
+            _gridDisplay   = new GridDisplay();
             _players       = new List<Character>();
             _movementPath  = new List<Position>();
             _movementSystem = new MovementSystem(_combatSystem.DiceRoller);
@@ -70,7 +70,6 @@ namespace RPGGame.Core
 
         /// <summary>
         /// Legacy constructor — grid size now comes from config; params are ignored.
-        /// Kept so existing call sites compile without changes.
         /// </summary>
         public GameManager(int ignoredWidth, int ignoredHeight) : this() { }
 
@@ -140,7 +139,7 @@ namespace RPGGame.Core
 
         private string ProcessGameAction(GameActionCommand cmd)
         {
-            if (_inMovementMode)         return ProcessMovementModeAction(cmd);
+            if (_inMovementMode)          return ProcessMovementModeAction(cmd);
             if (_waitingForDefenseChoice) return ProcessDefenseChoice(cmd);
             if (_waitingForEvasionMovement) return ProcessEvasionMovement(cmd);
             if (_waitingForMovementTarget)  return ProcessMovementTarget(cmd);
@@ -220,29 +219,25 @@ namespace RPGGame.Core
             return DrawMovementInterface($"Moved to ({newPos.X},{newPos.Y})");
         }
 
-        /// <summary>
-        /// BUG FIX: Capture _movementPointsUsed BEFORE ExitMovementMode() clears it to 0.
-        /// </summary>
         private string ConfirmMovementPath()
         {
             if (_movementPath == null || _movementPath.Count == 0)
                 return DrawMovementInterface("No path set! Use WASD to move, or ESC to cancel.");
 
             var character = _activeMovementResult?.Character ?? CurrentActor;
-            if (character == null)     return "Error: No current actor.";
+            if (character == null)            return "Error: No current actor.";
             if (_activeMovementResult == null) return "Error: Movement result missing.";
 
             var finalPosition = _movementPath.Last();
 
-            // BUG FIX: capture BEFORE ExitMovementMode() clears _movementPointsUsed
-            int pointsUsed = _movementPointsUsed;
-            bool isEvasion = _activeMovementResult.StaminaCost == 0;
+            int pointsUsed  = _movementPointsUsed;
+            bool isEvasion  = _activeMovementResult.StaminaCost == 0;
             bool allowsSecond = _activeMovementResult.AllowsSecondAction && !isEvasion;
 
             character.Position = finalPosition;
             if (!isEvasion) character.UseStamina(_activeMovementResult.StaminaCost);
 
-            ExitMovementMode(); // clears _movementPointsUsed — must be AFTER capture above
+            ExitMovementMode();
 
             _gridDisplay.UpdateCharacters(_players);
 
@@ -292,9 +287,9 @@ namespace RPGGame.Core
 
         private void ExitMovementMode()
         {
-            _inMovementMode      = false;
+            _inMovementMode       = false;
             _movementPath.Clear();
-            _movementPointsUsed  = 0;
+            _movementPointsUsed   = 0;
             _activeMovementResult = null;
             _movementStartPosition = null;
         }
@@ -308,7 +303,7 @@ namespace RPGGame.Core
             _movementPointsUsed = 0;
             _inMovementMode = true;
 
-            string typeStr  = moveType == MovementType.Simple ? "Move" : "Dash";
+            string typeStr    = moveType == MovementType.Simple ? "Move" : "Dash";
             string actionInfo = moveType == MovementType.Simple ? "(allows second action)" : "(ends turn)";
             string header = $"{character.Name} {typeStr}: {_activeMovementResult.MoveRoll} + " +
                             $"{character.MovementPoints} MOV = {_activeMovementResult.MaxDistance} points {actionInfo}\n\n";
@@ -320,12 +315,12 @@ namespace RPGGame.Core
         {
             _activeMovementResult = new MovementResult
             {
-                Character        = character,
-                MovementType     = MovementType.Simple,
-                MaxDistance      = maxDistance,
-                StaminaCost      = 0,
+                Character          = character,
+                MovementType       = MovementType.Simple,
+                MaxDistance        = maxDistance,
+                StaminaCost        = 0,
                 AllowsSecondAction = false,
-                ValidPositions   = new List<Position>()
+                ValidPositions     = new List<Position>()
             };
             _movementStartPosition = new Position(character.Position.X, character.Position.Y);
             _movementPath.Clear();
@@ -334,7 +329,7 @@ namespace RPGGame.Core
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Movement interface display (delegates to GridDisplay viewport)
+        // Movement interface display
         // ─────────────────────────────────────────────────────────────────────
 
         private string DrawMovementInterface(string message = "")
@@ -347,7 +342,6 @@ namespace RPGGame.Core
             sb.AppendLine("╔═══════════════════ RPG COMBAT GRID ═══════════════════╗");
             sb.AppendLine();
 
-            // Use the viewport-aware drawing from GridDisplay
             sb.Append(_gridDisplay.DrawViewportWithMovementPreview(
                 character, _movementStartPosition, _movementPath));
 
@@ -398,7 +392,6 @@ namespace RPGGame.Core
         {
             if (_inMovementMode) ExitMovementMode();
 
-            // Safety: ensure no character is stuck at 0 stamina before NextTurn loop
             foreach (var p in _players.Where(p => p.IsAlive && p.CurrentStamina == 0))
                 p.RestoreStamina(GameConfig.Current.Turns.ForcedRestRestore);
 
@@ -420,7 +413,7 @@ namespace RPGGame.Core
         {
             RPGGame.Combat.DefenseChoice? choice = cmd.Type switch
             {
-                GameActionType.Defend           => RPGGame.Combat.DefenseChoice.Defend,
+                GameActionType.Defend            => RPGGame.Combat.DefenseChoice.Defend,
                 GameActionType.EnterMovementMode => RPGGame.Combat.DefenseChoice.Move,
                 GameActionType.DefenseTakeDamage => RPGGame.Combat.DefenseChoice.TakeDamage,
                 _ => _inputHandler.IsDefenseChoice(cmd.RawInput)
@@ -467,7 +460,7 @@ namespace RPGGame.Core
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Evasion movement (legacy coordinate path — still supported)
+        // Evasion movement (legacy coordinate path)
         // ─────────────────────────────────────────────────────────────────────
 
         private string ProcessEvasionMovement(GameActionCommand cmd)
@@ -484,8 +477,8 @@ namespace RPGGame.Core
                     var name = _evadingCharacter.Name;
                     _evadingCharacter.Position = pos;
                     _waitingForEvasionMovement = false;
-                    _pendingEvasionResult = null;
-                    _evadingCharacter = null;
+                    _pendingEvasionResult      = null;
+                    _evadingCharacter          = null;
                     return CreateDisplay(CurrentActor,
                         $"{name} moves to ({pos.X},{pos.Y}) after evasion.\n") + AdvanceToNextTurn();
                 }
@@ -496,8 +489,8 @@ namespace RPGGame.Core
             {
                 var name = _evadingCharacter.Name;
                 _waitingForEvasionMovement = false;
-                _pendingEvasionResult = null;
-                _evadingCharacter = null;
+                _pendingEvasionResult      = null;
+                _evadingCharacter          = null;
                 return CreateDisplay(CurrentActor, $"{name} skips evasion movement.\n") + AdvanceToNextTurn();
             }
 
@@ -544,8 +537,7 @@ namespace RPGGame.Core
         {
             string result = cmd.Type switch
             {
-                GameActionType.Attack =>
-                    HandleAttackAction(cmd.Target != null ? FindCharacterByLetter(cmd.Target[0]) : null),
+                GameActionType.Attack            => HandleAttackAction(cmd.Target != null ? FindCharacterByLetter(cmd.Target[0]) : null),
                 GameActionType.EnterMovementMode => HandleMoveAction(),
                 GameActionType.MoveToPosition    => HandleMoveAction(cmd.TargetPosition),
                 GameActionType.EnterDashMode     => HandleDashAction(),
@@ -626,27 +618,19 @@ namespace RPGGame.Core
             if (!attackResult.Success)
                 return CreateDisplay(attacker, attackResult.Message);
 
-            // Counter attack turns bypass defense
+            // Counter attack turn — mark it, but still give defender a chance (true badminton rally)
             if (_turnManager.GetCurrentTurnType() == TurnType.CounterAttack)
-            {
-                var counterResult = _combatSystem.ExecuteCounterAttack(attacker, target);
-                _gridDisplay.UpdateCharacters(_players);
+                attackResult.IsCounterAttack = true;
 
-                if (_players.Count(p => p.IsAlive) <= 1)
-                {
-                    var winner = _players.FirstOrDefault(p => p.IsAlive);
-                    return CreateDisplay(winner, counterResult.Message + $"\n\n🎉 GAME OVER! {winner?.Name} wins!");
-                }
-                return CreateDisplay(attacker, counterResult.Message + "\n") + AdvanceToNextTurn();
-            }
-
-            // Regular attack — wait for defense response
+            // All attacks — normal or counter — go through the defense prompt
             _pendingAttack           = attackResult;
             _defendingCharacter      = target;
             _waitingForDefenseChoice = true;
 
+            string counterLabel = attackResult.IsCounterAttack ? "⚡ COUNTER ATTACK! " : "";
+
             return CreateDisplay(attacker,
-                $"{attackResult.Message}\n\n" +
+                $"{counterLabel}{attackResult.Message}\n\n" +
                 $"{target.Name}, choose your response:\n" +
                 "  'defend' — 2 SP, roll 2d6+DEF, build counter on over-defense\n" +
                 "  'move'   — 1 SP, roll 2d6+MOV evasion vs attack value\n" +
@@ -666,9 +650,6 @@ namespace RPGGame.Core
             return CreateDisplay(character, $"{character.Name} rests and recovers {restored} SP.\n") + AdvanceToNextTurn();
         }
 
-        /// <summary>
-        /// BUG FIX: Defend stance costs 1 stamina to prevent infinite stalemate.
-        /// </summary>
         private string HandleDefendAction()
         {
             var character = CurrentActor;
@@ -684,7 +665,7 @@ namespace RPGGame.Core
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Display helper — always centers viewport on a character
+        // Display helper
         // ─────────────────────────────────────────────────────────────────────
 
         private string CreateDisplay(Character focusCharacter, string info = "")
@@ -701,7 +682,6 @@ namespace RPGGame.Core
         {
             var positions = GameConfig.Current.Grid.GetStartingPositions();
 
-            // If config has fewer positions than players, generate extras
             for (int i = positions.Count; i < _players.Count; i++)
                 positions.Add(new Position(i * 3, i * 3));
 
@@ -712,9 +692,6 @@ namespace RPGGame.Core
         private Character FindCharacterByLetter(char letter)
             => _players.FirstOrDefault(p => p.IsAlive && char.ToUpper(p.Name[0]) == char.ToUpper(letter));
 
-        /// <summary>
-        /// Check whether a position is inside the arena bounds from config.
-        /// </summary>
         private bool IsInArenaBounds(Position pos)
             => pos.X >= 0 && pos.X < ArenaWidth && pos.Y >= 0 && pos.Y < ArenaHeight;
 
